@@ -6,12 +6,13 @@ project(evartp)
 
 list(
     APPEND SOURCE_FILES
-    src/foo.cpp
+    src/RtspManager.cpp
+    src/runnable/main.cpp
 )
 
 list(
     APPEND HEADER_FILES
-    src/foo.hpp
+    src/RtspManager.hpp
 )
 
 add_library(${PROJECT_NAME} SHARED ${SOURCE_FILES})

@@ -14,8 +14,10 @@
 # include <config.h>
 #endif
 #include <gst/base/gstpushsrc.h>
+
 #include <unistd.h>
 #include <String.h>
+#include <pthread.h>
 
 #include <gst/rtsp-server/rtsp-client.h>
 
@@ -25,7 +27,7 @@ GstRTSPUrl RtspManager::connection_info =
     GST_RTSP_FAM_INET,
     strdup( "tony"),
     strdup("Cyprus2016"),
-    strdup("192.168.1.220"),
+    strdup("192.168.6.49"),
     88,
     strdup("/videoMain"),
     strdup("")
@@ -113,7 +115,7 @@ void RtspManager:: connectToIPCam()
 
 void RtspManager::setupCustomData()
 {
-    data.pipeline     = gst_pipeline_new("IP Cam");
+    data.pipeline     = gst_pipeline_new("pipeline");
     data.rtspsrc      = gst_element_factory_make ("rtspsrc", "source");
     data.rtph264depay = gst_element_factory_make ("rtph264depay", "deplay");
     data.rtph264pay   = gst_element_factory_make ("rtph264pay", "play");
@@ -130,18 +132,35 @@ void RtspManager::setupCustomData()
                  "protocols", GST_RTSP_LOWER_TRANS_TCP,
                  "debug", TRUE,
                  "retry", 30,
-                 "do-rtcp", TRUE,
+                 "do-rtcp", FALSE,
                  "do-rtsp-keep-alive", TRUE,
                  NULL);
 }
 
 void RtspManager::setupPipeLine()
 {
-    gst_bin_add_many(GST_BIN(data.pipeline), data.rtspsrc, data.rtph264depay, data.rtph264pay, data.fakesink, NULL);
-    
+   // gst_bin_add_many(GST_BIN(data.pipeline), data.rtspsrc, data.rtph264depay, data.rtph264pay, data.fakesink, NULL);
+   
+    if (!gst_bin_add(GST_BIN(data.pipeline),   data.rtspsrc ))
+    {
+      g_printerr("Unable to add  rtspsrc to the pipeline!");
+    }
+    if (!gst_bin_add(GST_BIN(data.pipeline),   data.rtph264depay ))
+    {
+        g_printerr("Unable to add  rtph264depay to the pipeline!");
+    }
+    if (!gst_bin_add(GST_BIN(data.pipeline),   data.rtph264pay ))
+    {
+        g_printerr("Unable to add  rtph264pay to the pipeline!");
+    }
+    if (!gst_bin_add(GST_BIN(data.pipeline),   data.fakesink ))
+    {
+        g_printerr("Unable to add  fakesink to the pipeline!");
+    }
+
     g_signal_connect (data.rtspsrc, "pad-added",     G_CALLBACK(RtspManager::rtspsrc_pad_added_cb),   &data);
     g_signal_connect (data.rtspsrc, "pad-removed",   G_CALLBACK(RtspManager::rtspsrc_pad_removed_cb), &data);
-  
+      g_signal_connect (data.rtspsrc, "handle-request",   G_CALLBACK(RtspManager::rtspsrc_pad_removed_cb), &data);
 }
 
 void RtspManager::setupRTSPClient()
@@ -174,16 +193,73 @@ void RtspManager::setupRTSPClient()
 
 }
 
+void RtspManager::on_stream_status (GstBus     *bus, GstMessage *message, gpointer    user_data)
+{
+    GstStreamStatusType type;
+    GstElement *owner;
+    const GValue *val;
+    GstTask *task = NULL;
+    
+    gst_message_parse_stream_status (message, &type, &owner);
+    
+    val = gst_message_get_stream_status_object (message);
+    
+    /* see if we know how to deal with this object */
+    if (G_VALUE_TYPE (val) == GST_TYPE_TASK) {
+        task = (GstTask *) g_value_get_object (val);
+    }
+    
+    printMsg(message);
+
+    switch (type) {
+        case GST_STREAM_STATUS_TYPE_CREATE:
+            g_message("GST_STREAM_STATUS_TYPE_CREATE");
+            break;
+        case GST_STREAM_STATUS_TYPE_ENTER:
+            g_message("GST_STREAM_STATUS_TYPE_ENTER");
+            break;
+        case GST_STREAM_STATUS_TYPE_LEAVE:
+            break;
+        case GST_STREAM_STATUS_TYPE_DESTROY:
+            break;
+        case GST_STREAM_STATUS_TYPE_START:
+            break;
+        case  GST_STREAM_STATUS_TYPE_PAUSE:
+            break;
+        case GST_STREAM_STATUS_TYPE_STOP:
+            break;
+        default:
+            break;
+    }
+}
+
+void RtspManager::on_error (GstBus     *bus, GstMessage *message, gpointer    user_data)
+{
+    g_message ("received ERROR");
+    g_main_loop_quit ( RtspManager::data.main_loop );
+}
+
+void RtspManager::on_eos (GstBus     *bus, GstMessage *message, gpointer    user_data)
+{
+    g_message ("received EOS");
+    g_main_loop_quit ( RtspManager::data.main_loop );
+}
+
+void RtspManager::on_state_changed(GstBus  *bus, GstMessage *message, gpointer    user_data)
+{
+    printMsg(message);
+
+}
+
 void RtspManager::startLoop()
 {
-    bus = gst_element_get_bus (data.pipeline);
+    bus = gst_element_get_bus( data.pipeline);
     // add a signal onthe bus for messages
-    //g_signal_connect (bus, "message",  G_CALLBACK (bus_call), NULL);
-    //gst_bus_add_signal_watch_full (bus, G_PRIORITY_DEFAULT);
-    guint watch_id = gst_bus_add_watch (bus, RtspManager::bus_call, &data);
-    gst_object_unref (bus);
+    g_signal_connect (bus, "message",  G_CALLBACK (bus_call), NULL);
+    gst_bus_add_signal_watch_full (bus, G_PRIORITY_DEFAULT);
+ 
     msg = gst_bus_pop_filtered (bus, GST_MESSAGE_ANY);
-    
+    gst_object_unref (bus);
     /* Start playing */
     gst_element_set_state (data.pipeline, GST_STATE_PLAYING);
     g_main_loop_run (data.main_loop);
@@ -194,12 +270,15 @@ void RtspManager::startLoop()
     
     if (msg != NULL)
         gst_message_unref (msg);
+
     gst_rtsp_client_close(rtsp_client);
     gst_rtsp_connection_close(connection);
     gst_rtsp_connection_free(connection);
     
     gst_object_unref (data.pipeline);
 }
+
+
 
 void RtspManager::rtspsrc_pad_added_cb (GstElement *rtspsrc, GstPad* pad, CustomData *data)
 {
@@ -257,7 +336,8 @@ void RtspManager::processMsgType(GstMessage* msg, CustomData* data)
 {
     GMainLoop *loop = (GMainLoop *) data;
     
-    switch (GST_MESSAGE_TYPE (msg)) {
+    switch (GST_MESSAGE_TYPE (msg))
+    {
         case GST_MESSAGE_UNKNOWN:
             printMsg(msg);
             break;
@@ -281,118 +361,23 @@ void RtspManager::processMsgType(GstMessage* msg, CustomData* data)
             g_main_loop_quit (loop);
             break;
         }
-        case GST_MESSAGE_WARNING:
-            printMsg(msg);
-            break;
-        case GST_MESSAGE_INFO:
-            printMsg(msg);
-            break;
-        case GST_MESSAGE_TAG:
-            printMsg(msg);
-            break;
-        case GST_MESSAGE_BUFFERING:
-            printMsg(msg);
-            break;
-        case GST_MESSAGE_STATE_CHANGED:
+        case GST_MESSAGE_STATE_CHANGED: {
             printMsg(msg);
             /* We are only interested in state-changed messages from the pipeline */
-            if (GST_MESSAGE_SRC (msg) == GST_OBJECT (data->pipeline)) {
-                GstState old_state, new_state, pending_state;
+            const gchar* srcObj    = GST_MESSAGE_SRC_NAME(msg);
+            if (strcmp(srcObj, "pipeline") == 0)
+            {
+               GstState old_state, new_state, pending_state;
                 gst_message_parse_state_changed (msg, &old_state, &new_state, &pending_state);
                 g_print ("Pipeline state changed from %s to %s:\n",
                          gst_element_state_get_name (old_state), gst_element_state_get_name (new_state));
             }
             break;
-        case GST_MESSAGE_STATE_DIRTY:
-            printMsg(msg);
-            break;
-        case GST_MESSAGE_STEP_DONE:
-            printMsg(msg);
-            break;
-        case GST_MESSAGE_CLOCK_PROVIDE:
-            printMsg(msg);
-            break;
-        case GST_MESSAGE_CLOCK_LOST:
-            printMsg(msg);
-            break;
-        case GST_MESSAGE_NEW_CLOCK:
-            printMsg(msg);
-            break;
-        case GST_MESSAGE_STRUCTURE_CHANGE:
-            printMsg(msg);
-            break;
-        case GST_MESSAGE_STREAM_STATUS:
-            
-            printMsg(msg);
-            if (GST_MESSAGE_SRC (msg) == GST_OBJECT (data->rtspsrc))
-            {
-                g_print("Ip Cam now streaming...........");
-            }
-            break;
-        case GST_MESSAGE_APPLICATION:
-            printMsg(msg);
-            break;
-        case GST_MESSAGE_ELEMENT:
-            printMsg(msg);
-            break;
-        case GST_MESSAGE_SEGMENT_START:
-            printMsg(msg);
-            break;
-        case GST_MESSAGE_SEGMENT_DONE:
-            printMsg(msg);
-            break;
-        case GST_MESSAGE_DURATION_CHANGED:
-            printMsg(msg);
-            // mark as invalid
-            data->duration = GST_CLOCK_TIME_NONE;
-            break;
-        case GST_MESSAGE_LATENCY:
-            printMsg(msg);
-            break;
-        case GST_MESSAGE_ASYNC_START:
-            printMsg(msg);
-            break;
-        case GST_MESSAGE_ASYNC_DONE:
-            printMsg(msg);
-            break;
-        case GST_MESSAGE_REQUEST_STATE:
-            printMsg(msg);
-            break;
-        case GST_MESSAGE_STEP_START:
-            printMsg(msg);
-            break;
-        case GST_MESSAGE_QOS:
-            printMsg(msg);
-            break;
+        }
         case GST_MESSAGE_PROGRESS:
             printMsg(msg);
             break;
-        case GST_MESSAGE_TOC:
-            printMsg(msg);
-            break;
-        case GST_MESSAGE_RESET_TIME:
-            printMsg(msg);
-            break;
-        case GST_MESSAGE_STREAM_START:
-            printMsg(msg);
-            
-            break;
-        case GST_MESSAGE_NEED_CONTEXT:
-            printMsg(msg);
-            break;
-        case GST_MESSAGE_HAVE_CONTEXT:
-            printMsg(msg);
-            break;
-        case GST_MESSAGE_EXTENDED:
-            printMsg(msg);
-            break;
-        case GST_MESSAGE_DEVICE_ADDED:
-            printMsg(msg);
-            break;
-        case GST_MESSAGE_DEVICE_REMOVED:
-            printMsg(msg);
-            break;
-        case GST_MESSAGE_ANY:
+        case GST_MESSAGE_NEW_CLOCK:
             printMsg(msg);
             break;
         default:
@@ -403,7 +388,6 @@ void RtspManager::processMsgType(GstMessage* msg, CustomData* data)
 
 gboolean RtspManager::bus_call (GstBus *bus, GstMessage *msg, gpointer data)
 {
-    GMainLoop *loop = (GMainLoop *) data;
     CustomData* customData = (CustomData*)data;
     processMsgType( msg, customData);
     return TRUE;

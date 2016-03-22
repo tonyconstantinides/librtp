@@ -13,7 +13,7 @@
 #include <gst/gst.h>
 #include <gst/rtsp-server/rtsp-client.h>
 
-#define RTSP_URI "rtsp://tony:Cyprus2016@192.168.1.220:88/videoMain"
+#define RTSP_URI "rtsp://tony:Cyprus2016@192.168.6.49:88/videoMain"
 #define RTSP_LATENCY 0
 #define RTSP_BUFFER_MODE 0
 #define RTSP_RTP_BLOCKSIZE 65536
@@ -27,6 +27,9 @@ typedef struct _CustomData{
     gboolean seek_done;      /* Have we performed the seek already? */
     gint64      duration;        /* How long does this media last, in nanoseconds */
 }CustomData;
+
+//typedef struct _GstRTSPStream GstRTSPStream;
+
 
 class RtspManager
 {
@@ -57,6 +60,13 @@ public:
     static void setupPipeLine();
     static void setupRTSPClient();
     static void startLoop();
+    // signals callbacks
+    static void on_stream_status (GstBus *bus, GstMessage *message, gpointer  user_data);
+    static void on_error (GstBus *bus, GstMessage *message, gpointer    user_data);
+    static void on_eos (GstBus  *bus, GstMessage *message, gpointer user_data);
+    static void on_state_changed(GstBus  *bus, GstMessage *message, gpointer    user_data);
+
+   
 protected:
     RtspManager();
     static std::shared_ptr<RtspManager> instance;
