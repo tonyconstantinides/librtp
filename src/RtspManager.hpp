@@ -49,7 +49,7 @@ public:
     // callbacks
      // utility funcs
     static void printMsg(GstMessage* msg);
-    static void processMsgType(GstMessage* msg, CustomData* data);
+    static void processMsgType(GstBus *bus, GstMessage* msg, CustomData* data);
     // actual api
     static void connectToIPCam();
     static void makeElements();

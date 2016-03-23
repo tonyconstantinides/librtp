@@ -128,15 +128,17 @@ void RtspManager::makeElements()
     {
         g_printerr ("One element could not be created. Exiting.\n");
     }
-    g_object_set( G_OBJECT (data.rtspsrc), "location", RTSP_URI,
-                 "latency", RTSP_LATENCY,
+    g_object_set( G_OBJECT (data.rtspsrc),
+                 "location",      RTSP_URI,
+                 "latency",       RTSP_LATENCY,
                  "buffer-mode", RTSP_BUFFER_MODE,
                  "rtp-blocksize", RTSP_RTP_BLOCKSIZE,
-                 "protocols", GST_RTSP_LOWER_TRANS_TCP,
-                 "debug", TRUE,
-                 "retry", 30,
-                 "do-rtcp", FALSE,
-                 "do-rtsp-keep-alive", TRUE,
+                 "protocols",     GST_RTSP_LOWER_TRANS_TCP,
+                 "debug",         TRUE,
+                 "retry",            30,
+                 "do-rtcp",         TRUE,
+                 "do-rtsp-keep-alive", FALSE,
+                 "short-header", FALSE,
                  NULL);
 }
 
@@ -146,26 +148,27 @@ void RtspManager::setupPipeLine()
     {
       g_printerr("Unable to add  rtspsrc to the pipeline!");
     }
+
     if (!gst_bin_add(GST_BIN(data.pipeline),   data.rtph264depay ))
     {
         g_printerr("Unable to add  rtph264depay to the pipeline!");
     }
-    g_signal_connect(data.rtph264depay, "pad-added,", G_CALLBACK(RtspManager::on_pad_added_cb), &data);
-
+  
     if (!gst_bin_add(GST_BIN(data.pipeline),   data.rtph264pay ))
     {
         g_printerr("Unable to add  rtph264pay to the pipeline!");
     }
+
     if (!gst_bin_add(GST_BIN(data.pipeline),   data.fakesink ))
     {
         g_printerr("Unable to add  fakesink to the pipeline!");
     }
-    
-    if (!gst_element_link_many (data.rtph264depay, data.rtph264pay, data.fakesink, NULL))
-    {
+   if (!gst_element_link_many (data.rtph264depay, data.rtph264pay, data.fakesink, NULL))
+   {
         g_printerr("Error Linking elements");
     }
-    g_signal_connect (data.rtspsrc,"pad-added",  G_CALLBACK(RtspManager::rtspsrc_pad_added_cb),   &data);
+    
+   g_signal_connect (data.rtspsrc,"pad-added",  G_CALLBACK(RtspManager::rtspsrc_pad_added_cb),   &data);
     g_signal_connect (data.rtspsrc, "pad-removed",   G_CALLBACK(RtspManager::rtspsrc_pad_removed_cb), &data);
     g_signal_connect (data.rtspsrc, "no-more-pads",   G_CALLBACK(RtspManager::rtspsrc_no_more_pads_cb), &data);
 }
@@ -273,26 +276,40 @@ void RtspManager::rtspsrc_pad_added_cb (GstElement* rtspsrc, GstPad* pad, Custom
 {
     GST_INFO("New pad in rtspsrc added!");
     gchar *dynamic_pad_name;
-    
+    GstPad* new_pad = nullptr;
     dynamic_pad_name = gst_pad_get_name (pad);
+    GstCaps* caps = gst_pad_get_current_caps(pad);
+    if (caps && pad && rtspsrc)
+    {
+        new_pad = gst_element_get_compatible_pad(rtspsrc, pad, caps);
+    }
     
-    if(gst_element_link_pads(data->rtspsrc, dynamic_pad_name, data->rtph264depay, "sink")){
-        GST_INFO("Pad for audio linked");
-        g_free (dynamic_pad_name);
-        return;
+    GstElement *linkElement = (GstElement *) data->rtph264depay;
+    GstPad *sinkpad = gst_element_get_static_pad (linkElement, "sink");
+    if (GST_PAD_IS_LINKED(sinkpad))
+    {
+        gst_pad_unlink (pad, sinkpad);
     }
-    else if(gst_element_link_pads(data->rtspsrc, dynamic_pad_name, data->rtph264pay, "sink")){
-        GST_INFO("Pad for video linked");
-        g_free (dynamic_pad_name);
-        return;
-    }
-    else if(gst_element_link_pads(data->rtspsrc, dynamic_pad_name, data->fakesink, "sink")){
-        GST_INFO("Pad for video linked");
-        g_free (dynamic_pad_name);
-        return;
-    }
-    else {
-        gst_element_link_pads(data->rtspsrc, dynamic_pad_name, GST_ELEMENT(pad), "sink");
+    GstPadLinkReturn linkreturn = gst_pad_link (pad, sinkpad);
+    gst_object_unref(GST_OBJECT (sinkpad));
+    
+    if (linkreturn == GST_PAD_LINK_OK)
+    {
+        if(gst_element_link_pads(data->rtspsrc, dynamic_pad_name, data->rtph264depay, "sink")){
+            GST_INFO("Pad for audio linked");
+            g_free (dynamic_pad_name);
+            return;
+        }
+        else if(gst_element_link_pads(data->rtspsrc, dynamic_pad_name, data->rtph264pay, "sink")){
+            GST_INFO("Pad for video linked");
+            g_free (dynamic_pad_name);
+            return;
+        }
+        else if(gst_element_link_pads(data->rtspsrc, dynamic_pad_name, data->fakesink, "sink")){
+            GST_INFO("Pad for video linked");
+            g_free (dynamic_pad_name);
+            return;
+        }
     }
 }
 
@@ -320,7 +337,7 @@ void RtspManager::printMsg(GstMessage* msg)
     g_print("---------------------------------------------------------------------------\n");
 }
 
-void RtspManager::processMsgType(GstMessage* msg, CustomData* data)
+void RtspManager::processMsgType(GstBus *bus, GstMessage* msg, CustomData* data)
 {
     GMainLoop *loop = (GMainLoop *) data;
     
@@ -382,6 +399,7 @@ void RtspManager::processMsgType(GstMessage* msg, CustomData* data)
             break;
         case GST_MESSAGE_ASYNC_DONE:
             printMsg(msg);
+            gst_bus_remove_signal_watch(bus);
             break;
         default:
             g_print("Error, something wrong should never processed this unknown messge!");
@@ -392,7 +410,8 @@ void RtspManager::processMsgType(GstMessage* msg, CustomData* data)
 gboolean RtspManager::bus_call (GstBus *bus, GstMessage *msg, gpointer data)
 {
     CustomData* customData = (CustomData*)data;
-    processMsgType( msg, customData);
+    processMsgType( bus, msg, customData);
+
     return TRUE;
 }
 
