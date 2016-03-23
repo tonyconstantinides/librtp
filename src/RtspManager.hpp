@@ -11,7 +11,7 @@
 #include <memory>
 #include <gio/gio.h>
 #include <gst/gst.h>
-#include <gst/rtsp-server/rtsp-client.h>
+#include <gst/rtsp/gstrtspconnection.h>
 
 #define RTSP_URI "rtsp://tony:Cyprus2016@192.168.6.49:88/videoMain"
 #define RTSP_LATENCY 0
@@ -42,21 +42,17 @@ public:
     RtspManager& operator=(RtspManager&&)              = default;  // Move assign
     
     static gboolean bus_call (GstBus *bus, GstMessage *msg, gpointer data);
+    static void on_pad_added_cb (GstElement *element, GstPad *pad, CustomData*  data);
     static void rtspsrc_pad_added_cb (GstElement *rtspsrc, GstPad* pad, CustomData *data);
     static void rtspsrc_pad_removed_cb (GstElement *rtspsrc, GstPad* pad, CustomData *data);
+    static void rtspsrc_no_more_pads_cb(GstElement *rtspsrc, gpointer data);
     // callbacks
-    static void setup_request_cb(GstRTSPClient  *gstrtspclient,GstRTSPContext *arg1, gpointer user_data);
-    static void announce_request_cb(GstRTSPClient *gstrtspclient, GstRTSPContext *arg1, gpointer user_data);
-    static void new_session_cb (GstRTSPClient  *gstrtspclient, GstRTSPSession *arg1, gpointer user_data);
-    static void describe_request_cb(GstRTSPClient  *gstrtspclient,GstRTSPContext *arg1, gpointer user_data);
-    static void play_request_cb(GstRTSPClient  *gstrtspclient, GstRTSPContext *arg1, gpointer  user_data);
-    static void options_request_cb(GstRTSPClient  *gstrtspclient, GstRTSPContext *arg1, gpointer  user_data);
-    // utility funcs
+     // utility funcs
     static void printMsg(GstMessage* msg);
     static void processMsgType(GstMessage* msg, CustomData* data);
     // actual api
     static void connectToIPCam();
-    static void setupCustomData();
+    static void makeElements();
     static void setupPipeLine();
     static void setupRTSPClient();
     static void startLoop();
@@ -76,7 +72,6 @@ protected:
     /* Initialize our data structure */
     static CustomData data;
     static  GstRTSPUrl connection_info;
-    static   GstRTSPClient* rtsp_client;
 
 };
 

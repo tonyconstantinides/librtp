@@ -8,8 +8,13 @@
 
 #include "RtspManager.hpp"
 #include <gio/gio.h>
+
+//#include <gst/rtsp/gstrtspsrc.h>
 #include <gst/gst.h>
+
 #include <gst/rtsp/gstrtsp.h>
+#include <gst/rtsp/gstrtspsrc.h>
+#include <gst/gstutils.h>
 #ifdef HAVE_CONFIG_H
 # include <config.h>
 #endif
@@ -19,7 +24,6 @@
 #include <String.h>
 #include <pthread.h>
 
-#include <gst/rtsp-server/rtsp-client.h>
 
 
 GstRTSPUrl RtspManager::connection_info =
@@ -48,7 +52,7 @@ std::shared_ptr<RtspManager> RtspManager::instance = nullptr;
 GstBus* RtspManager::bus  = nullptr;
 GstMessage* RtspManager::msg = nullptr;
 GstRTSPConnection* RtspManager::connection = nullptr;
-GstRTSPClient* RtspManager:: rtsp_client = nullptr;
+
 
 RtspManager::RtspManager()
 {
@@ -110,10 +114,9 @@ void RtspManager:: connectToIPCam()
     {
         GST_ERROR("gst_rtsp_connection_get_write_socket failed!");
     }
-
 }
 
-void RtspManager::setupCustomData()
+void RtspManager::makeElements()
 {
     data.pipeline     = gst_pipeline_new("pipeline");
     data.rtspsrc      = gst_element_factory_make ("rtspsrc", "source");
@@ -139,8 +142,6 @@ void RtspManager::setupCustomData()
 
 void RtspManager::setupPipeLine()
 {
-   // gst_bin_add_many(GST_BIN(data.pipeline), data.rtspsrc, data.rtph264depay, data.rtph264pay, data.fakesink, NULL);
-   
     if (!gst_bin_add(GST_BIN(data.pipeline),   data.rtspsrc ))
     {
       g_printerr("Unable to add  rtspsrc to the pipeline!");
@@ -149,6 +150,8 @@ void RtspManager::setupPipeLine()
     {
         g_printerr("Unable to add  rtph264depay to the pipeline!");
     }
+    g_signal_connect(data.rtph264depay, "pad-added,", G_CALLBACK(RtspManager::on_pad_added_cb), &data);
+
     if (!gst_bin_add(GST_BIN(data.pipeline),   data.rtph264pay ))
     {
         g_printerr("Unable to add  rtph264pay to the pipeline!");
@@ -157,41 +160,46 @@ void RtspManager::setupPipeLine()
     {
         g_printerr("Unable to add  fakesink to the pipeline!");
     }
-
-    g_signal_connect (data.rtspsrc, "pad-added",     G_CALLBACK(RtspManager::rtspsrc_pad_added_cb),   &data);
-    g_signal_connect (data.rtspsrc, "pad-removed",   G_CALLBACK(RtspManager::rtspsrc_pad_removed_cb), &data);
-      g_signal_connect (data.rtspsrc, "handle-request",   G_CALLBACK(RtspManager::rtspsrc_pad_removed_cb), &data);
-}
-
-void RtspManager::setupRTSPClient()
-{
-    rtsp_client  = gst_rtsp_client_new();
-    if (!rtsp_client)
-    {
-        g_printerr ("gst_rtsp_client_new() failed! Exiting.\n");
-
-    }
-    gboolean status = gst_rtsp_client_set_connection(rtsp_client, connection);
-    if (!status)
-    {
-        g_printerr ("gst_rtsp_client_set_connection() return false. Exiting.\n");
-    }
-    g_signal_connect (rtsp_client, "setup-request",      G_CALLBACK( RtspManager::setup_request_cb), NULL);
-    g_signal_connect (rtsp_client, "new-session",           G_CALLBACK ( RtspManager::new_session_cb),   NULL);
-    g_signal_connect (rtsp_client, "describe-request",   G_CALLBACK (RtspManager::describe_request_cb), NULL);
-    g_signal_connect (rtsp_client, "announce-request",   G_CALLBACK (RtspManager::announce_request_cb), NULL);
-    g_signal_connect (rtsp_client, "play-request",          G_CALLBACK (RtspManager::play_request_cb),     NULL);
-    g_signal_connect (rtsp_client, "options-request",     G_CALLBACK (RtspManager::options_request_cb),  NULL);
     
-    data.main_loop = g_main_loop_new (NULL, FALSE);
-    GMainContext*  context = g_main_loop_get_context(data.main_loop);
-    guint  attachResult =  gst_rtsp_client_attach(rtsp_client, context);
-    if (!attachResult)
+    if (!gst_element_link_many (data.rtph264depay, data.rtph264pay, data.fakesink, NULL))
     {
-        g_printerr("Unable to attach the client!");
+        g_printerr("Error Linking elements");
     }
-
+    g_signal_connect (data.rtspsrc,"pad-added",  G_CALLBACK(RtspManager::rtspsrc_pad_added_cb),   &data);
+    g_signal_connect (data.rtspsrc, "pad-removed",   G_CALLBACK(RtspManager::rtspsrc_pad_removed_cb), &data);
+    g_signal_connect (data.rtspsrc, "no-more-pads",   G_CALLBACK(RtspManager::rtspsrc_no_more_pads_cb), &data);
 }
+
+
+void RtspManager::startLoop()
+{
+    data.main_loop = g_main_loop_new (NULL, FALSE);
+    g_main_loop_get_context(data.main_loop);
+    
+    bus = gst_element_get_bus( data.pipeline);
+    // add a signal onthe bus for messages
+    g_signal_connect (bus, "message",  G_CALLBACK (bus_call), NULL);
+    gst_bus_add_signal_watch_full (bus, G_PRIORITY_DEFAULT);
+    
+    msg = gst_bus_pop_filtered (bus, GST_MESSAGE_ANY);
+    gst_object_unref (bus);
+    /* Start playing */
+    gst_element_set_state (data.pipeline, GST_STATE_PLAYING);
+    g_main_loop_run (data.main_loop);
+    
+    // free the bus
+    gst_element_set_state (data.pipeline, GST_STATE_NULL);
+    gst_bus_remove_signal_watch(bus);
+    gst_message_unref (msg);
+    // free the client connection objects
+    
+    gst_rtsp_connection_close(connection);
+    gst_rtsp_connection_free(connection);
+    // free the pipeline
+    gst_object_unref (data.pipeline);
+}
+
+
 
 void RtspManager::on_stream_status (GstBus     *bus, GstMessage *message, gpointer    user_data)
 {
@@ -248,69 +256,44 @@ void RtspManager::on_eos (GstBus     *bus, GstMessage *message, gpointer    user
 void RtspManager::on_state_changed(GstBus  *bus, GstMessage *message, gpointer    user_data)
 {
     printMsg(message);
-
 }
 
-void RtspManager::startLoop()
+void RtspManager::on_pad_added_cb (GstElement *element, GstPad *pad, CustomData*  data)
 {
-    bus = gst_element_get_bus( data.pipeline);
-    // add a signal onthe bus for messages
-    g_signal_connect (bus, "message",  G_CALLBACK (bus_call), NULL);
-    gst_bus_add_signal_watch_full (bus, G_PRIORITY_DEFAULT);
- 
-    msg = gst_bus_pop_filtered (bus, GST_MESSAGE_ANY);
-    gst_object_unref (bus);
-    /* Start playing */
-    gst_element_set_state (data.pipeline, GST_STATE_PLAYING);
-    g_main_loop_run (data.main_loop);
-    
-    /* Free resources */
-    gst_element_set_state (data.pipeline, GST_STATE_NULL);
-    gst_bus_remove_signal_watch(bus);
-    
-    if (msg != NULL)
-        gst_message_unref (msg);
-
-    gst_rtsp_client_close(rtsp_client);
-    gst_rtsp_connection_close(connection);
-    gst_rtsp_connection_free(connection);
-    
-    gst_object_unref (data.pipeline);
+    GstPad *sinkpad;
+    GstElement *decoder = data->rtph264pay;
+    /* We can now link this pad with the rtsp-decoder sink pad */
+    g_print ("Dynamic pad created, linking source/demuxer\n");
+    sinkpad = gst_element_get_static_pad (decoder, "sink");
+    gst_pad_link (pad, sinkpad);
+    gst_object_unref (sinkpad);
 }
 
-
-
-void RtspManager::rtspsrc_pad_added_cb (GstElement *rtspsrc, GstPad* pad, CustomData *data)
+void RtspManager::rtspsrc_pad_added_cb (GstElement* rtspsrc, GstPad* pad, CustomData* data)
 {
     GST_INFO("New pad in rtspsrc added!");
-    gchar *name;
-    GstCaps * p_caps;
-    gchar * description;
-    GstElement *rtph264depay = GST_ELEMENT(data->rtph264depay);
-    GstElement *rtph264pay   = GST_ELEMENT(data->rtph264pay);
-    GstElement *fakesink     = GST_ELEMENT(data->fakesink);
+    gchar *dynamic_pad_name;
     
-    name = gst_pad_get_name(pad);
-    g_print("A new pad %s was created\n", name);
-    p_caps = gst_pad_get_pad_template_caps (pad);
+    dynamic_pad_name = gst_pad_get_name (pad);
     
-    description = gst_caps_to_string(p_caps);
-    printf("%s\n",p_caps,", ",description,"\n");
-    
-    // try to link the pads then ...
-    if(!gst_element_link_pads(rtspsrc, name, rtph264depay, "deplay"))
-    {
-        printf("Failed to link elements 3\n");
+    if(gst_element_link_pads(data->rtspsrc, dynamic_pad_name, data->rtph264depay, "sink")){
+        GST_INFO("Pad for audio linked");
+        g_free (dynamic_pad_name);
+        return;
     }
-    if(!gst_element_link_pads(rtspsrc, name, rtph264pay, "play"))
-    {
-        printf("Failed to link elements 3\n");
+    else if(gst_element_link_pads(data->rtspsrc, dynamic_pad_name, data->rtph264pay, "sink")){
+        GST_INFO("Pad for video linked");
+        g_free (dynamic_pad_name);
+        return;
     }
-    if(!gst_element_link_pads(rtspsrc, name, fakesink, "sink"))
-    {
-        printf("Failed to link elements 3\n");
+    else if(gst_element_link_pads(data->rtspsrc, dynamic_pad_name, data->fakesink, "sink")){
+        GST_INFO("Pad for video linked");
+        g_free (dynamic_pad_name);
+        return;
     }
-    g_free(description);
+    else {
+        gst_element_link_pads(data->rtspsrc, dynamic_pad_name, GST_ELEMENT(pad), "sink");
+    }
 }
 
 void RtspManager::rtspsrc_pad_removed_cb (GstElement *rtspsrc, GstPad* pad, CustomData *data)
@@ -318,12 +301,17 @@ void RtspManager::rtspsrc_pad_removed_cb (GstElement *rtspsrc, GstPad* pad, Cust
     GST_INFO("New pad in rtspsrc removed !");
 }
 
+void RtspManager::rtspsrc_no_more_pads_cb(GstElement *rtspsrc, gpointer data)
+{
+     GST_INFO("No_more_pads in rtspsrc removed !");
+}
+
 void RtspManager::printMsg(GstMessage* msg)
 {
     const gchar* msgType   = GST_MESSAGE_TYPE_NAME(msg);
     GstClockTime timeStamp = GST_MESSAGE_TIMESTAMP(msg);
-    const gchar* srcObj    = GST_MESSAGE_SRC_NAME(msg);
-    guint seqnum           = GST_MESSAGE_SEQNUM(msg);
+    const gchar* srcObj        = GST_MESSAGE_SRC_NAME(msg);
+    guint seqnum                = GST_MESSAGE_SEQNUM(msg);
     g_print("--------------------------------------------------------------------------\n");
     g_print("Mesage SeqNum                   :   %d\n",    seqnum);
     g_print("Messge type                     :  %s\n",   msgType);
@@ -344,7 +332,10 @@ void RtspManager::processMsgType(GstMessage* msg, CustomData* data)
             
         case GST_MESSAGE_EOS: {
             g_print ("End of stream\n");
-            data->terminate = TRUE;
+            if (data != nullptr)
+            {
+                data->terminate = TRUE;
+            }
             g_main_loop_quit (loop);
             break;
         }
@@ -380,6 +371,18 @@ void RtspManager::processMsgType(GstMessage* msg, CustomData* data)
         case GST_MESSAGE_NEW_CLOCK:
             printMsg(msg);
             break;
+        case GST_MESSAGE_STREAM_STATUS:
+            printMsg(msg);
+            break;
+        case GST_MESSAGE_ELEMENT:
+            printMsg(msg);
+            break;
+        case GST_MESSAGE_STREAM_START:
+            printMsg(msg);
+            break;
+        case GST_MESSAGE_ASYNC_DONE:
+            printMsg(msg);
+            break;
         default:
             g_print("Error, something wrong should never processed this unknown messge!");
             break;
@@ -394,35 +397,6 @@ gboolean RtspManager::bus_call (GstBus *bus, GstMessage *msg, gpointer data)
 }
 
 
-// signals for the connection
-void RtspManager::setup_request_cb(GstRTSPClient  *gstrtspclient,GstRTSPContext *arg1, gpointer user_data)
-{
-    GST_LOG("setup_request_cb");
-}
-
-void RtspManager::announce_request_cb(GstRTSPClient *gstrtspclient, GstRTSPContext *arg1, gpointer user_data)
-{
-    GST_LOG("announce_request_cb");
-}
-
-void RtspManager::new_session_cb (GstRTSPClient  *gstrtspclient, GstRTSPSession *arg1, gpointer user_data)
-{
-    GST_LOG("new_session_cb");
-}
-
-void RtspManager::describe_request_cb(GstRTSPClient  *gstrtspclient,GstRTSPContext *arg1, gpointer user_data)
-{
-    GST_LOG("describe_request_cb");
-}
-
-void RtspManager::play_request_cb(GstRTSPClient  *gstrtspclient, GstRTSPContext *arg1, gpointer  user_data)
-{
-    GST_LOG("play_request_cb");
-}
-void RtspManager::options_request_cb(GstRTSPClient  *gstrtspclient, GstRTSPContext *arg1, gpointer  user_data)
-{
-    GST_LOG("options_request_cb");
-}
 
 
 
