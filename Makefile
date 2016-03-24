@@ -75,6 +75,11 @@ xcodeproj:
 open-xcodeproj: xcodeproj
 	open $(XCODEPROJ)
 
+.PHONY: install
+install: all
+	[[ "$(DESTDIR)" == "" ]] && ( echo "FATAL: Must specify a DESTDIR for the install target." && exit 1 ) \
+		|| ( cd $(call BUILD_DIR,$(BUILD_TYPE)) && $(NINJA_CMD) install )
+
 .PHONY: clean
 clean:
 	rm -rf $(BUILD_DIR_BASE)

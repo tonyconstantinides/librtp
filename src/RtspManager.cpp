@@ -9,11 +9,9 @@
 #include "RtspManager.hpp"
 #include <gio/gio.h>
 
-//#include <gst/rtsp/gstrtspsrc.h>
 #include <gst/gst.h>
 
 #include <gst/rtsp/gstrtsp.h>
-#include <gst/rtsp/gstrtspsrc.h>
 #include <gst/gstutils.h>
 #ifdef HAVE_CONFIG_H
 # include <config.h>
@@ -21,7 +19,7 @@
 #include <gst/base/gstpushsrc.h>
 
 #include <unistd.h>
-#include <String.h>
+#include <string.h>
 #include <pthread.h>
 
 
@@ -332,7 +330,7 @@ void RtspManager::printMsg(GstMessage* msg)
     g_print("--------------------------------------------------------------------------\n");
     g_print("Mesage SeqNum                   :   %d\n",    seqnum);
     g_print("Messge type                     :  %s\n",   msgType);
-    g_print("Time Stamp when mesage created  : %lu\n", timeStamp);
+    g_print("Time Stamp when mesage created  : %llu\n", timeStamp);
     g_print("Src Object Name                 : %s\n",   srcObj);
     g_print("---------------------------------------------------------------------------\n");
 }
