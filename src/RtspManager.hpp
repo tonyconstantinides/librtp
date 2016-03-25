@@ -54,7 +54,6 @@ public:
     static void connectToIPCam();
     static void makeElements();
     static void setupPipeLine();
-    static void setupRTSPClient();
     static void startLoop();
     // signals callbacks
     static void on_stream_status (GstBus *bus, GstMessage *message, gpointer  user_data);
