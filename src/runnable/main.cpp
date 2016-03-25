@@ -15,7 +15,7 @@
 #endif
 #include <gst/base/gstpushsrc.h>
 #include <unistd.h>
-#include <String.h>
+#include <string.h>
 
 #include <gst/rtsp-server/rtsp-client.h>
 #include "RtspManager.hpp"
