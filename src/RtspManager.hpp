@@ -69,6 +69,10 @@ protected:
     static GstBus *bus;
     static GstMessage *msg;
     static GstRTSPConnection* connection;
+    static GstRTSPUrl* url;
+    static  GSocket* writeSocket;
+    static GSocket* readSocket;
+    static GstRTSPWatch*  rtspWatch;
     /* Initialize our data structure */
     static CustomData data;
     static  GstRTSPUrl connection_info;

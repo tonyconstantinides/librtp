@@ -52,7 +52,10 @@ std::shared_ptr<RtspManager> RtspManager::instance = nullptr;
 GstBus* RtspManager::bus  = nullptr;
 GstMessage* RtspManager::msg = nullptr;
 GstRTSPConnection* RtspManager::connection = nullptr;
-
+GstRTSPUrl* RtspManager::url = nullptr;
+GSocket* RtspManager::writeSocket = nullptr;
+GSocket* RtspManager::readSocket = nullptr;
+GstRTSPWatch* RtspManager::rtspWatch = nullptr;
 
 RtspManager::RtspManager()
 {
@@ -73,6 +76,16 @@ std::shared_ptr<RtspManager> RtspManager::createNewRtspManager()
         std::shared_ptr<RtspManager> instance (new RtspManager());
     }
     return instance;
+}
+
+void  destroyFunc  (gpointer  data)
+{
+    GST_LOG("RTSP called destroy");
+}
+
+GstRTSPResult rtsp_message_received(GstRTSPWatch *watch, GstRTSPMessage *message, gpointer user_data)
+{
+    return GST_RTSP_OK;
 }
 
 void RtspManager:: connectToIPCam()
@@ -104,16 +117,42 @@ void RtspManager:: connectToIPCam()
         GST_ERROR("gst_rtsp_connection_connect failed!");
     }
     
-    GSocket* readSocket = gst_rtsp_connection_get_read_socket(connection);
+    readSocket = gst_rtsp_connection_get_read_socket(connection);
     if (readSocket == NULL)
     {
         GST_ERROR("gst_rtsp_connection_get_read_socket failed!");
     }
-    GSocket* writeSocket =  gst_rtsp_connection_get_write_socket(connection);
+    writeSocket =  gst_rtsp_connection_get_write_socket(connection);
     if (writeSocket == NULL)
     {
         GST_ERROR("gst_rtsp_connection_get_write_socket failed!");
     }
+    url =  gst_rtsp_connection_get_url((const  GstRTSPConnection *)connection);
+    if (url == NULL)
+    {
+         GST_ERROR("gst_rtsp_connection_get_url failed!");
+    }
+    // compare to ensure we dealing with the same thing
+    if (strcmp(url->user, connection_info.user) != 0 )
+    {
+        GST_ERROR("gst_rtsp_connection_get_url failed for username!");
+    }
+    if (strcmp(url->passwd , connection_info.passwd) != 0 )
+    {
+        GST_ERROR("gst_rtsp_connection_get_url failed for password!");
+    }
+    if (strcmp(url->host,  connection_info.host) != 0 )
+    {
+        GST_ERROR("gst_rtsp_connection_get_url failed for host!");
+    }
+    if (url->port !=   connection_info.port)
+    {
+        GST_ERROR("gst_rtsp_connection_get_url failed for host!");
+    }
+    GstRTSPWatchFuncs rtsp_funcs;
+    rtsp_funcs.message_received = rtsp_message_received;
+  
+    rtspWatch = gst_rtsp_watch_new(connection, &rtsp_funcs, NULL,  destroyFunc);
 }
 
 void RtspManager::makeElements()
@@ -140,6 +179,7 @@ void RtspManager::makeElements()
                  "do-rtsp-keep-alive", FALSE,
                  "short-header", FALSE,
                  NULL);
+    
 }
 
 void RtspManager::setupPipeLine()
