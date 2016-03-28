@@ -51,7 +51,12 @@ public:
     static void printMsg(GstMessage* msg);
     static void processMsgType(GstBus *bus, GstMessage* msg, CustomData* data);
     // actual api
-    static void connectToIPCam();
+    static void connectToIPCam( const gchar * userName,
+                                     const gchar * password,
+                                     const gchar * host,
+                                     guint16  port,
+                                     const gchar* abspath,
+                                     const gchar* queryParms);
     static void makeElements();
     static void setupPipeLine();
     static void startLoop();

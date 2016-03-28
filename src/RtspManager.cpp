@@ -22,6 +22,7 @@
 #include <unistd.h>
 #include <string.h>
 #include <pthread.h>
+#include <stdlib.h>
 
 using namespace Jetpack::Foundation;
 
@@ -29,8 +30,8 @@ GstRTSPUrl RtspManager::connection_info =
 {   GST_RTSP_LOWER_TRANS_TCP,
     GST_RTSP_FAM_INET,
     strdup( "tony"),
-    strdup("Cyprus2016"),
-    strdup("192.168.6.49"),
+    strdup(""),
+    strdup("192.168.7.82"),
     88,
     strdup("/videoMain"),
     strdup("")
@@ -78,10 +79,32 @@ std::shared_ptr<RtspManager> RtspManager::createNewRtspManager()
 }
 
 
-void RtspManager::connectToIPCam()
+void RtspManager::connectToIPCam( const gchar * userName,
+                                                            const gchar * password,
+                                                            const gchar * host,
+                                                            guint16  port,
+                                                            const gchar* abspath,
+                                                            const gchar* query)
 {
+    logdbg("Entering connectToIPCam.......");
     GstRTSPResult result;
     GstRTSPAuthMethod method = GST_RTSP_AUTH_DIGEST;
+    connection_info.user = strdup(userName);
+    connection_info.passwd = strdup(password);
+    connection_info.host = strdup(host);
+    connection_info.port = port;
+    connection_info.abspath = strdup(abspath);
+    connection_info.query = strdup(query);
+    logdbg("Connection to IPCamera");
+    char debug_string[100];
+    strcat(debug_string, "\nHost is: ");
+    strcat (debug_string, host);
+    logdbg(debug_string);
+    
+    char buffer[40];
+    sprintf(buffer,"%d",port);
+    strcpy(debug_string,  "\nPort is: ");
+    strcat(debug_string, buffer);
     result = gst_rtsp_connection_create(&RtspManager::connection_info, &connection);
     if (result != GST_RTSP_OK)
     {
@@ -89,8 +112,8 @@ void RtspManager::connectToIPCam()
     }
     result = gst_rtsp_connection_set_auth(connection,
                                           method,
-                                          "tony",
-                                          "Cyprus2016"
+                                          userName,
+                                          password 
                                           );
     if (result != GST_RTSP_OK)
     {
@@ -139,10 +162,12 @@ void RtspManager::connectToIPCam()
     {
         logerr() << "RtspManager::gst_rtsp_connection_get_url failed for host!";
     }
+    logdbg("Exiting connectToIPCam.......");
 }
 
 void RtspManager::makeElements()
 {
+    logdbg("Entering makeElements.......");
     data.pipeline     = gst_pipeline_new("pipeline");
     data.rtspsrc      = gst_element_factory_make ("rtspsrc", "source");
     data.rtph264depay = gst_element_factory_make ("rtph264depay", "deplay");
@@ -165,11 +190,12 @@ void RtspManager::makeElements()
                  "do-rtsp-keep-alive", FALSE,
                  "short-header", FALSE,
                  NULL);
-    
+    logdbg("Exiting makeElements.......");
 }
 
 void RtspManager::setupPipeLine()
 {
+    logdbg("Entering setupPipeLine.......");
     if (!gst_bin_add(GST_BIN(data.pipeline),   data.rtspsrc ))
     {
        logerr() << "Unable to add rtspsrc to the pipeline!";
@@ -197,11 +223,13 @@ void RtspManager::setupPipeLine()
    g_signal_connect (data.rtspsrc,"pad-added",       G_CALLBACK(RtspManager::rtspsrc_pad_added_cb),   &data);
    g_signal_connect (data.rtspsrc, "pad-removed",    G_CALLBACK(RtspManager::rtspsrc_pad_removed_cb), &data);
    g_signal_connect (data.rtspsrc, "no-more-pads",   G_CALLBACK(RtspManager::rtspsrc_no_more_pads_cb), &data);
-}
 
+   logdbg("Exiting setupPipeLine.......");
+}
 
 void RtspManager::startLoop()
 {
+    logdbg("Entering startLoop.......");
     data.main_loop = g_main_loop_new (NULL, FALSE);
     g_main_loop_get_context(data.main_loop);
     
@@ -213,6 +241,7 @@ void RtspManager::startLoop()
     msg = gst_bus_pop_filtered (bus, GST_MESSAGE_ANY);
     gst_object_unref (bus);
     /* Start playing */
+    logdbg("Starting loop.......");
     gst_element_set_state (data.pipeline, GST_STATE_PLAYING);
     g_main_loop_run (data.main_loop);
     
@@ -226,6 +255,7 @@ void RtspManager::startLoop()
     gst_rtsp_connection_free(connection);
     // free the pipeline
     gst_object_unref (data.pipeline);
+    logdbg("Exiting startLoop.......");
 }
 
 
