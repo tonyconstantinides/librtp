@@ -20,48 +20,60 @@
 #include <gst/base/gstpushsrc.h>
 
 #include <unistd.h>
-#include <string.h>
 #include <pthread.h>
+
 #include <stdlib.h>
+#include <vector>
 
 using namespace Jetpack::Foundation;
 
-GstRTSPUrl RtspManager::connection_info =
-{   GST_RTSP_LOWER_TRANS_TCP,
-    GST_RTSP_FAM_INET,
-    strdup( "tony"),
-    strdup(""),
-    strdup("192.168.7.82"),
-    88,
-    strdup("/videoMain"),
-    strdup("")
-};
-
-CustomData RtspManager::data =
-{
-    nullptr,
-    nullptr,  nullptr , nullptr, nullptr, nullptr ,
-    FALSE,
-    FALSE,
-    FALSE,
-    FALSE,
-    0
-};
-
-std::shared_ptr<RtspManager> RtspManager::instance = nullptr;
-GstBus* RtspManager::bus  = nullptr;
-GstMessage* RtspManager::msg = nullptr;
-GstRTSPConnection* RtspManager::connection = nullptr;
-GstRTSPUrl* RtspManager::url = nullptr;
-GSocket* RtspManager::writeSocket = nullptr;
-GSocket* RtspManager::readSocket = nullptr;
-GstRTSPWatch* RtspManager::rtspWatch = nullptr;
+RtspManager* RtspManager::instance = nullptr;
+short RtspManager::messageCount = 0;
+short  RtspManager::refCounts = 0;
+std::vector<RtspManagerRef> RtspManager::instanceList = {};
 
 RtspManager::RtspManager()
+:  bus(nullptr), msg(nullptr), connection(nullptr), url(nullptr), writeSocket(nullptr),
+  readSocket(nullptr), rtspWatch(nullptr) 
 {
+    logdbg("***************************************");
+    logdbg("Entering RtspManager constructor.......");
+ 
+    data =
+    {
+        nullptr,
+        nullptr,
+        nullptr,  nullptr , nullptr, nullptr, nullptr ,
+        FALSE,
+        FALSE,
+        FALSE,
+        FALSE,
+        0,
+        nullptr
+    };
+    connection_info =
+    {
+        GST_RTSP_LOWER_TRANS_TCP,
+        GST_RTSP_FAM_INET,
+        nullptr,
+        nullptr,
+        nullptr,
+        88,
+        nullptr,
+        nullptr
+    };
+    logdbg("Before memset the data struture.......");
     memset (&data, 0, sizeof (data));
-    /* Initialize GStreamer */
+    logdbg("After init the data struture.......");
+
+    logdbg("Before init the shared pointers.......");
+    callbacksRef = std::make_shared<RtspManagerCallbacks>();
+    logdbg("After init the shared pointers.......");
+ 
     gst_init (0, nullptr);
+ 
+    logdbg("Leaving RtspManager constructor.......");
+    logdbg("***************************************");
 }
 
 RtspManager::~RtspManager()
@@ -69,23 +81,31 @@ RtspManager::~RtspManager()
     
 }
 
-std::shared_ptr<RtspManager> RtspManager::createNewRtspManager()
+short  RtspManager::getRefCount()
 {
-    if (instance == nullptr)
-    {
-        std::shared_ptr<RtspManager> instance (new RtspManager());
-    }
-    return instance;
+    return refCounts;
 }
 
+RtspManager* RtspManager::createNewRtspManager()
+{
+    logdbg("***************************************");
+    logdbg("Entering createNewRtspManager.......");
+    refCounts++;
+    instance = new RtspManager();  
+    logdbg("Leaving createNewRtspManager.......");
+    logdbg("***************************************");
+    return instance;
+    //instanceList.push_back(managerRef);
+}
 
 void RtspManager::connectToIPCam( const gchar * userName,
-                                                            const gchar * password,
-                                                            const gchar * host,
-                                                            guint16  port,
-                                                            const gchar* abspath,
-                                                            const gchar* query)
+                                  const gchar * password,
+                                  const gchar * host,
+                                  guint16  port,
+                                  const gchar* abspath,
+                                  const gchar* query)
 {
+    logdbg("***************************************");
     logdbg("Entering connectToIPCam.......");
     GstRTSPResult result;
     GstRTSPAuthMethod method = GST_RTSP_AUTH_DIGEST;
@@ -97,15 +117,15 @@ void RtspManager::connectToIPCam( const gchar * userName,
     connection_info.query = strdup(query);
     logdbg("Connection to IPCamera");
     char debug_string[100];
-    strcat(debug_string, "\nHost is: ");
-    strcat (debug_string, host);
+    sprintf(debug_string, "Host is:   %s",   connection_info.host );
     logdbg(debug_string);
-    
-    char buffer[40];
-    sprintf(buffer,"%d",port);
-    strcpy(debug_string,  "\nPort is: ");
-    strcat(debug_string, buffer);
-    result = gst_rtsp_connection_create(&RtspManager::connection_info, &connection);
+    sprintf(debug_string,"Port is: %d",       connection_info.port);
+    logdbg(debug_string);
+    sprintf(debug_string, "Additional Path: %s", connection_info.abspath );
+    logdbg(debug_string);
+    sprintf(debug_string, "User name:  %s", connection_info.user );
+    logdbg(debug_string);
+    result = gst_rtsp_connection_create(&connection_info, &connection);
     if (result != GST_RTSP_OK)
     {
         logerr() << "RtspManager::gst_rtsp_connection_create failed!";
@@ -124,12 +144,35 @@ void RtspManager::connectToIPCam( const gchar * userName,
     time.tv_usec = 30000;
     
     result = gst_rtsp_connection_connect(connection, &time);
-    
-    if (result != GST_RTSP_OK)
+    if (result == GST_RTSP_OK)
+    {
+        logdbg("----------------------------------------------------------------");
+        logdbg("Test TCP/IP connection to IP Camera successful!");
+        logdbg("----------------------------------------------------------------");
+        // setting the connection_url
+        connection_url = "rtsp://";
+        connection_url.append(connection_info.user);
+        connection_url.append(":");
+        connection_url.append(connection_info.passwd);
+        connection_url.append("@");
+        connection_url.append(connection_info.host);
+        connection_url.append(":");   
+        char buffer[5];
+        sprintf(buffer, "%u", port);
+        connection_url.append(buffer);
+        connection_url.append(connection_info.abspath);
+        connection_url.append(connection_info.query);
+        logdbg("Setting the connection url");
+        data.url = new gchar(connection_url.length() + 1); 
+        std::strcpy(data.url, connection_url.c_str());
+        logdbg(data.url);
+        logdbg("Connection url set!");
+     }
+    else
     {
         logerr() << "RtspManager::gst_rtsp_connection_connect failed!";
     }
-    
+
     readSocket = gst_rtsp_connection_get_read_socket(connection);
     if (readSocket == NULL)
     {
@@ -162,11 +205,18 @@ void RtspManager::connectToIPCam( const gchar * userName,
     {
         logerr() << "RtspManager::gst_rtsp_connection_get_url failed for host!";
     }
+    logdbg("Freeing the test connection........");
+      // free the test client connection objects
+    gst_rtsp_connection_close(connection);
+    gst_rtsp_connection_free(connection);
+
     logdbg("Exiting connectToIPCam.......");
+    logdbg("***************************************");
 }
 
 void RtspManager::makeElements()
 {
+    logdbg("***************************************");
     logdbg("Entering makeElements.......");
     data.pipeline     = gst_pipeline_new("pipeline");
     data.rtspsrc      = gst_element_factory_make ("rtspsrc", "source");
@@ -177,147 +227,112 @@ void RtspManager::makeElements()
     if (!data.pipeline || !data.rtspsrc || !data.rtph264depay || !data.rtph264pay || !data.fakesink)
     {
         logerr() << "RtspManager::One element could not be created!";
+        return;
     }
     g_object_set( G_OBJECT (data.rtspsrc),
-                 "location",      RTSP_URI,
+                 "location",      connection_url.c_str(),
                  "latency",       RTSP_LATENCY,
-                 "buffer-mode", RTSP_BUFFER_MODE,
+                 "buffer-mode",   RTSP_BUFFER_MODE,
                  "rtp-blocksize", RTSP_RTP_BLOCKSIZE,
                  "protocols",     GST_RTSP_LOWER_TRANS_TCP,
-                 "debug",         TRUE,
-                 "retry",            30,
-                 "do-rtcp",         TRUE,
+                 "debug",              TRUE,
+                 "retry",              30,
+                 "do-rtcp",            TRUE,
                  "do-rtsp-keep-alive", FALSE,
-                 "short-header", FALSE,
+                 "short-header",       FALSE,
                  NULL);
-    logdbg("Exiting makeElements.......");
+   
+    logdbg("Leaving makeElements......."); 
+    logdbg("***************************************");
 }
 
 void RtspManager::setupPipeLine()
 {
+    logdbg("***************************************");
     logdbg("Entering setupPipeLine.......");
     if (!gst_bin_add(GST_BIN(data.pipeline),   data.rtspsrc ))
     {
        logerr() << "Unable to add rtspsrc to the pipeline!";
+        return;
     }
 
     if (!gst_bin_add(GST_BIN(data.pipeline),   data.rtph264depay ))
     {
         logerr() << "Unable to add  rtph264depay to the pipeline!";
+        return;
     }
   
     if (!gst_bin_add(GST_BIN(data.pipeline),   data.rtph264pay ))
     {
         logerr() << "Unable to add rtph264pay to the pipeline!";
+        return;
     }
 
     if (!gst_bin_add(GST_BIN(data.pipeline),   data.fakesink ))
     {
         logerr() << "Unable to add fakesink to the pipeline!";
+        return;
     }
    if (!gst_element_link_many (data.rtph264depay, data.rtph264pay, data.fakesink, NULL))
    {
         logerr() << "Error Linking elements";
-    }
-    
-   g_signal_connect (data.rtspsrc,"pad-added",       G_CALLBACK(RtspManager::rtspsrc_pad_added_cb),   &data);
-   g_signal_connect (data.rtspsrc, "pad-removed",    G_CALLBACK(RtspManager::rtspsrc_pad_removed_cb), &data);
-   g_signal_connect (data.rtspsrc, "no-more-pads",   G_CALLBACK(RtspManager::rtspsrc_no_more_pads_cb), &data);
+       return;
+   }
+    // add dynamic pads to connect them when added
+   logdbg("Adding RTSPSRC plugin callbacks......");
+
+   g_signal_connect (data.rtspsrc,"pad-added",       G_CALLBACK(RtspManagerCallbacks::rtspsrc_pad_added_cb),   &data);
+   g_signal_connect (data.rtspsrc, "pad-removed",    G_CALLBACK(RtspManagerCallbacks::rtspsrc_pad_removed_cb), &data);
+   g_signal_connect (data.rtspsrc, "no-more-pads",   G_CALLBACK(RtspManagerCallbacks::rtspsrc_no_more_pads_cb), &data);
 
    logdbg("Exiting setupPipeLine.......");
+   logdbg("***************************************");
 }
 
 void RtspManager::startLoop()
 {
+    logdbg("***************************************");
     logdbg("Entering startLoop.......");
+
+    logdbg("Creating the main loop...");
     data.main_loop = g_main_loop_new (NULL, FALSE);
-    g_main_loop_get_context(data.main_loop);
+    //g_main_loop_get_context(data.main_loop); // not needed but keep because we need the context later
     
+    // add a signal on the bus for messages
     bus = gst_element_get_bus( data.pipeline);
-    // add a signal onthe bus for messages
-    g_signal_connect (bus, "message",  G_CALLBACK (bus_call), NULL);
+    logdbg("Adding bus watch callback....");
+    g_signal_connect (bus, "message",  G_CALLBACK (callbacksRef->bus_call), &data);
+    logdbg("Adding the bus watch listening for all messages...");
     gst_bus_add_signal_watch_full (bus, G_PRIORITY_DEFAULT);
-    
+    logdbg("Listen to all bus messages based on the filter......");
     msg = gst_bus_pop_filtered (bus, GST_MESSAGE_ANY);
-    gst_object_unref (bus);
-    /* Start playing */
+    // Start playing
+    logdbg("Set the pipeline to playing ......");
+    GstStateChangeReturn statechange = gst_element_set_state (data.pipeline, GST_STATE_PLAYING);
+    if (statechange == GST_STATE_CHANGE_FAILURE)
+    {
+          logerr() << "RtspManager::Error calling gst_element_set_state()";
+          return;
+    }
     logdbg("Starting loop.......");
-    gst_element_set_state (data.pipeline, GST_STATE_PLAYING);
+    // now start the loop
     g_main_loop_run (data.main_loop);
     
     // free the bus
+    logdbg("Finished loop!.........");
     gst_element_set_state (data.pipeline, GST_STATE_NULL);
+    logdbg("Remove the bus watch.........");
     gst_bus_remove_signal_watch(bus);
+    logdbg("Unreference the gstreamer references so they can be released.........");
     gst_message_unref (msg);
-    // free the client connection objects
-    
-    gst_rtsp_connection_close(connection);
-    gst_rtsp_connection_free(connection);
-    // free the pipeline
+    gst_object_unref (bus);
+   // free the pipeline
     gst_object_unref (data.pipeline);
     logdbg("Exiting startLoop.......");
+    logdbg("***************************************");
 }
 
-
-
-void RtspManager::on_stream_status (GstBus     *bus, GstMessage *message, gpointer    user_data)
-{
-    GstStreamStatusType type;
-    GstElement *owner;
-    const GValue *val;
-    GstTask *task = NULL;
-    
-    gst_message_parse_stream_status (message, &type, &owner);
-    
-    val = gst_message_get_stream_status_object (message);
-    
-    /* see if we know how to deal with this object */
-    if (G_VALUE_TYPE (val) == GST_TYPE_TASK) {
-        task = (GstTask *) g_value_get_object (val);
-    }
-    
-    printMsg(message);
-
-    switch (type) {
-        case GST_STREAM_STATUS_TYPE_CREATE:
-            logdbg("GST_STREAM_STATUS_TYPE_CREATE");
-            break;
-        case GST_STREAM_STATUS_TYPE_ENTER:
-            logdbg("GST_STREAM_STATUS_TYPE_ENTER");
-            break;
-        case GST_STREAM_STATUS_TYPE_LEAVE:
-            break;
-        case GST_STREAM_STATUS_TYPE_DESTROY:
-            break;
-        case GST_STREAM_STATUS_TYPE_START:
-            break;
-        case  GST_STREAM_STATUS_TYPE_PAUSE:
-            break;
-        case GST_STREAM_STATUS_TYPE_STOP:
-            break;
-        default:
-            break;
-    }
-}
-
-void RtspManager::on_error (GstBus     *bus, GstMessage *message, gpointer    user_data)
-{
-    logerr() <<  "received ERROR";
-    g_main_loop_quit ( RtspManager::data.main_loop );
-}
-
-void RtspManager::on_eos (GstBus     *bus, GstMessage *message, gpointer    user_data)
-{
-    logerr() <<  "received EOS";
-    g_main_loop_quit ( RtspManager::data.main_loop );
-}
-
-void RtspManager::on_state_changed(GstBus  *bus, GstMessage *message, gpointer    user_data)
-{
-    printMsg(message);
-}
-
-void RtspManager::on_pad_added_cb (GstElement *element, GstPad *pad, CustomData*  data)
+void RtspManagerCallbacks::on_pad_added_cb (GstElement *element, GstPad *pad, CustomData*  data)
 {
     GstPad *sinkpad;
     GstElement *decoder = data->rtph264pay;
@@ -328,7 +343,8 @@ void RtspManager::on_pad_added_cb (GstElement *element, GstPad *pad, CustomData*
     gst_object_unref (sinkpad);
 }
 
-void RtspManager::rtspsrc_pad_added_cb (GstElement* rtspsrc, GstPad* pad, CustomData* data)
+// must connect dynamically because of ow rtspsrc works!
+void RtspManagerCallbacks::rtspsrc_pad_added_cb (GstElement* rtspsrc, GstPad* pad, CustomData* data)
 {
     logdbg("New pad in rtspsrc added!");
     gchar *dynamic_pad_name;
@@ -369,50 +385,75 @@ void RtspManager::rtspsrc_pad_added_cb (GstElement* rtspsrc, GstPad* pad, Custom
     }
 }
 
-void RtspManager::rtspsrc_pad_removed_cb (GstElement *rtspsrc, GstPad* pad, CustomData *data)
+void RtspManagerCallbacks::rtspsrc_pad_removed_cb (GstElement *rtspsrc, GstPad* pad, CustomData *data)
 {
     logdbg("New pad in rtspsrc removed !");
 }
 
-void RtspManager::rtspsrc_no_more_pads_cb(GstElement *rtspsrc, gpointer data)
+void RtspManagerCallbacks::rtspsrc_no_more_pads_cb(GstElement *rtspsrc, gpointer data)
 {
      logdbg("No_more_pads in rtspsrc removed !");
 }
 
-void RtspManager::printMsg(GstMessage* msg)
+void RtspManagerCallbacks::printMsg(GstMessage* msg, const gchar*  msgType)
 {
-    const gchar* msgType   = GST_MESSAGE_TYPE_NAME(msg);
+    if (msg == NULL)
+    {
+        return;
+    }
+   
+    const gchar* msgTypeName    = GST_MESSAGE_TYPE_NAME(msg);
     GstClockTime timeStamp = GST_MESSAGE_TIMESTAMP(msg);
     const gchar* srcObj        = GST_MESSAGE_SRC_NAME(msg);
-    guint seqnum                = GST_MESSAGE_SEQNUM(msg);
+    guint seqnum                 = GST_MESSAGE_SEQNUM(msg);
+    
+    char buffer[75];
     logdbg ("--------------------------------------------------------------------------\n");
-    logdbg ("Mesage SeqNum                   : %d\n",    seqnum);
-    logdbg ("Messge type                     : %s\n",   msgType);
-    logdbg ("Time Stamp when mesage created  : %llu\n", timeStamp);
-    logdbg ("Src Object Name                 : %s\n",   srcObj);
+    sprintf(buffer, "Mesage SeqNum     : %d\n",    seqnum);
+    logdbg (buffer);
+    sprintf(buffer, "Message type           :%s", msgType);
+    logdbg (buffer);
+    sprintf(buffer, "Messge type  Name : %s",   msgTypeName);
+    logdbg (buffer);
+    sprintf(buffer, "Time Stamp when mesage created  : %llu", timeStamp);
+    logdbg (buffer);
+    sprintf(buffer, "Src Object Name       : %s",   srcObj);
+    logdbg (buffer);
     logdbg ("---------------------------------------------------------------------------\n");
 }
 
-void RtspManager::  processMsgType(GstBus *bus, GstMessage* msg, CustomData* data)
+void RtspManagerCallbacks::processMsgType(GstBus *bus, GstMessage* msg, CustomData* pdata)
 {
-    GMainLoop *loop = (GMainLoop *) data;
-    
+   
+    char* url;
+    if (msg == NULL)
+    {
+       logerr() << "Msg is NULL in RtspManagerprocessMsgTyped fakesink to the pipeline!";
+       logdbg("Somethign wrong Msg is NULL!");
+       return;
+    } 
     switch (GST_MESSAGE_TYPE (msg))
     {
         case GST_MESSAGE_UNKNOWN:
-            printMsg(msg);
+            printMsg(msg,"GST_MESSAGE_UNKNOWN");
             break;
             
         case GST_MESSAGE_EOS: {
+            printMsg(msg, " GST_MESSAGE_EOS");
             logdbg ("End of stream\n");
-            if (data != nullptr)
+            if (pdata != NULL)
             {
-                data->terminate = TRUE;
+                pdata->terminate = TRUE;
             }
-            g_main_loop_quit (loop);
+            if (pdata != NULL)
+            {    
+                g_main_loop_quit ( pdata->main_loop );
+            }
             break;
         }
         case GST_MESSAGE_ERROR: {
+            printMsg(msg, " GST_MESSAGE_ERROR");
+
             gchar  *debug;
             GError *error;
             
@@ -421,12 +462,14 @@ void RtspManager::  processMsgType(GstBus *bus, GstMessage* msg, CustomData* dat
             
             logerr() <<  "Error: " << error->message;
             g_error_free (error);
-            
-            g_main_loop_quit (loop);
+            if (pdata)
+            {    
+                g_main_loop_quit(pdata->main_loop);
+            }
             break;
         }
         case GST_MESSAGE_STATE_CHANGED: {
-            printMsg(msg);
+            printMsg(msg, " GST_MESSAGE_STATE_CHANGED");
             /* We are only interested in state-changed messages from the pipeline */
             const gchar* srcObj    = GST_MESSAGE_SRC_NAME(msg);
             if (strcmp(srcObj, "pipeline") == 0)
@@ -441,35 +484,66 @@ void RtspManager::  processMsgType(GstBus *bus, GstMessage* msg, CustomData* dat
             break;
         }
         case GST_MESSAGE_PROGRESS:
-            printMsg(msg);
+            printMsg(msg, "GST_MESSAGE_PROGRESS");
             break;
         case GST_MESSAGE_NEW_CLOCK:
-            printMsg(msg);
+            printMsg(msg, "GST_MESSAGE_NEW_CLOCK");
             break;
         case GST_MESSAGE_STREAM_STATUS:
-            printMsg(msg);
+            printMsg(msg, "GST_MESSAGE_STREAM_STATUS");
             break;
         case GST_MESSAGE_ELEMENT:
-            printMsg(msg);
+            printMsg(msg, "GST_MESSAGE_ELEMENT");
             break;
         case GST_MESSAGE_STREAM_START:
-            printMsg(msg);
+            printMsg(msg, "GST_MESSAGE_STREAM_START");
             break;
         case GST_MESSAGE_ASYNC_DONE:
-            printMsg(msg);
-            gst_bus_remove_signal_watch(bus);
+            printMsg(msg, "GST_MESSAGE_ASYNC_DONE");
+            logdbg ("GST_MESSAGE_ASYNC_DONE: removing the bus watch!");
+            // remove the watch as you not interested in anything beyond this
+            if (bus != NULL)
+            {    
+                logdbg("Removing the bus signal watch !");
+                gst_bus_remove_signal_watch(bus);
+            }
+            logdbg("Allocating space for the url to pass to the decoder!");
+            char buffer[50];
+            url = buffer;
+            std::strcpy(url,"rtp://192.168.6.49:65534");
+            if (pdata != NULL) 
+            {    
+                logdbg("Calling the connected() callback!!!!");
+                pdata->connectionCB(url);    
+                logdbg("connected() callback finished?");  
+            } else {
+                logdbg("No access to the data structure cannot call the connected() callback!");
+            }
+            logdbg("Ending Camera Loop.....");
+            if (pdata && pdata->main_loop)
+            {    
+                g_main_loop_quit( pdata->main_loop ); 
+            } else {
+                logdbg("No access to the data structure cannot break out of Camera loop!");
+            }          
+            logdbg("Camera Loop finshed. .....");
             break;
         default:
-            logerr() << "Error, something wrong should never processed this unknown messge!";
+            logerr() << "RtspManager::Error, something wrong should never processed this unknown messge!";
             break;
-    }
+    }   
 }
 
-gboolean RtspManager::bus_call (GstBus *bus, GstMessage *msg, gpointer data)
+// Called for every message on the bus, passing the customer data as the last parm
+gboolean RtspManagerCallbacks::bus_call (GstBus *bus, GstMessage *msg, gpointer data)
 {
+    logdbg("***************************************");
+    logdbg("bus call!");
+    // This is frequently NULL because messages are called by thew gstreamer framework
     CustomData* customData = (CustomData*)data;
     processMsgType( bus, msg, customData);
-
+    RtspManager::messageCount++;
+    logdbg("***************************************");
     return TRUE;
 }
 

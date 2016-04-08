@@ -1,0 +1,3 @@
+ gst-launch-1.0 --gst-debug=rtpjitterbuffer:5  rtpbin name=rtpbin rtspsrc location=rtsp://192.168.6.49:88/videoMain user_id=tony user_pw=Cyprus2016 ntp-sync=FALSE async-handling=TRUE do-retransmission=FALSE user-agent="Eva Automation Cake" latency=0 buffer-mode=0 rtp-blocksize=50000 protocols=tcp debug=TRUE retry=30 do-rtcp=TRUE do-rtsp-keep-alive=FALSE max-rtcp-rtp-time-diff=1000 port-range=8000-8005 ntp-time-source=0 ! progressreport update-freq=3 ! rtph264depay ! rtph264pay ! rtpbin.send_rtp_sink_0 rtpbin.send_rtp_src_0   ! udpsink host=127.0.0.1 port=8000 sync=false async=false udpsrc  caps="application/x-rtp, clock-rate=90000, media=(string)video"  port=8000 ! rtpjitterbuffer ! rtph264depay ! avdec_h264 ! autovideosink 
+
+
