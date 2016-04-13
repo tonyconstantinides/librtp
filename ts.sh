@@ -1,0 +1,2 @@
+gst-launch-1.0 rtpbin name=rtpbin rtspsrc location=rtsp://192.168.6.49:88/videoMain user_id=tony user_pw=Cyprus2016 ntp-sync=FALSE async-handling=TRUE do-retransmission=FALSE user-agent="Eva Automation Cake" latency=0 buffer-mode=0  rtp-blocksize=50000 protocols=tcp debug=TRUE retry=30 do-rtcp=TRUE do-rtsp-keep-alive=FALSE ntp-time-source=0  ! rtpbin.send_rtp_sink_0 rtpbin.send_rtp_src_0   !  rtph264depay ! mpegtsmux !  rtpmp2tpay  !  udpsink host=192.168.6.183 port=8000 async=false sync=false 
+

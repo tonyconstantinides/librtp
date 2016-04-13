@@ -1,0 +1,1 @@
+gst-launch-1.0 rtspsrc location=rtsp://tony:Cyprus2016@192.168.6.49:88/videoMain latency=0 buffer-mode=0 rtp-blocksize=65536 protocols=tcp debug=TRUE retry=30 do-rtcp=TRUE do-rtsp-keep-alive=FALSE short-header=FALSE caps="application/x-rtp,media=(string)video,clock-rate=(int)90000,encoding-name=(string)H264,payload=(int)96"  !  tcpserversink port=3000 host=127.0.0.1

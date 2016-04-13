@@ -1,0 +1,1 @@
+ gst-launch-1.0 rtspsrc protocols=4 buffer-mode=0 name=src rtp-blocksize=65536 debug=TRUE retry=30 do-rtcp=TRUE do-rtsp-keep-alive=FALSE short-header=FALSE location="rtsp://tony:Cyprus2016@192.168.6.49:88/videoMain" latency=0 ! rtph264depay ! rtph264pay ! fakesink 
