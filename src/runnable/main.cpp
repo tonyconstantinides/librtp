@@ -26,7 +26,7 @@ static GstDebugCategory* my_category;
 int main(int argc, const char * argv[]) {
     // insert code here...
     std::cout << "Hello, World!\n";
-    std::shared_ptr<RtspManager> manager =  RtspManager::createNewRtspManager();
+    RtspManager* manager =  RtspManager::createNewRtspManager();
     GST_DEBUG_CATEGORY_INIT (my_category, "my_code", 0, "This is the debug category for my code.");
     manager->connectToIPCam();
     manager->setupPipeLine();
