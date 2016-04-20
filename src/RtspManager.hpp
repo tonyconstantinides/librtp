@@ -14,11 +14,9 @@
 #include <gst/rtsp/gstrtspconnection.h>
 #include <functional>
 #include <string>
+#include "Common.hpp"
+#include "CamParmsEncription.hpp"
 
-#define USER_AGENT "Eva Automartion Cake"
-#define RTSP_LATENCY 0
-#define RTSP_BUFFER_MODE 0
-#define RTSP_RTP_BLOCKSIZE 50000
 /* Structure to contain all our information, so we can pass it around */
 typedef struct _CustomData{
     GMainLoop *main_loop;
@@ -41,14 +39,7 @@ typedef struct _CustomData{
     std::function<void(char*)> connectionCB;
 }CustomData;
 
-//typedef struct _GstRTSPStream GstRTSPStream;
-class RtspManager;
-class RtspManagerCallbacks;
-typedef std::shared_ptr<RtspManager> RtspManagerRef;
 typedef std::shared_ptr<CustomData> CustomDataRef;
-typedef std::shared_ptr<RtspManagerCallbacks> CallbacksRef;
-enum   API_CALL_STATUS {OK, CLEAR, FAIL, FATAL_ERROR };
-typedef API_CALL_STATUS ApiStatus;
 
 class RtspManager
 {
