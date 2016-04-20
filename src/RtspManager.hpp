@@ -28,7 +28,7 @@ typedef struct _CustomData{
     GstElement*   rtspsrc;
     GstElement*   rtph264depay;
     GstElement*    mpegtsmux;
-    GstElement*   rtph264pay;
+    GstElement*   rtpmp2tpay;
     GstElement*     identity;
     GstElement*   udpsink;
     GstElement*   udpsrc;
@@ -44,7 +44,6 @@ typedef struct _CustomData{
 //typedef struct _GstRTSPStream GstRTSPStream;
 class RtspManager;
 class RtspManagerCallbacks;
-
 typedef std::shared_ptr<RtspManager> RtspManagerRef;
 typedef std::shared_ptr<CustomData> CustomDataRef;
 typedef std::shared_ptr<RtspManagerCallbacks> CallbacksRef;
@@ -55,13 +54,14 @@ class RtspManager
 {
 public:
     static  RtspManagerRef  createNewRtspManager();
-    virtual ~RtspManager();
-    RtspManager(RtspManager const&)                       = default;    // Copy construct
-    RtspManager(RtspManager&&)                              = default;   // Move construct
-    RtspManager& operator=(RtspManager const&)       = default;  // Copy assign
-    RtspManager& operator=(RtspManager&&)              = default;  // Move assign
+    virtual ~RtspManager() = default;
+    RtspManager(RtspManager const&)                      = delete;    // Copy construct
+    RtspManager(RtspManager&&)                             = delete;   // Move construct
+    RtspManager& operator=(RtspManager const&)          = delete;  // Copy assign
+    RtspManager& operator=(RtspManager&&)                  = default;  // Move assign
     
     static short getRefCount();
+
           // actual api
     ApiStatus connectToIPCam( const gchar * userName,
                                      const gchar * password,
@@ -84,9 +84,19 @@ public:
     ApiStatus  errorApiState( const gchar * msg);
     // fatal error do not continue
     ApiStatus  fatalApiState( const gchar* msg);
+    // test the ip connection before we try to use it
+    ApiStatus testConnection();
+    // the current api state
+    ApiStatus ApiState;
 protected:
     RtspManager();
+    ApiStatus  createElements();
+    ApiStatus  addElementsToBin();
+    void           setElementsProperties();
+    void           addCallbacks();
+    void           cleanUp();
     static RtspManagerRef instance;
+ 
     GstBus *bus;
     GstMessage *msg;
     GstRTSPConnection* connection;
@@ -107,6 +117,13 @@ protected:
 class RtspManagerCallbacks
 {
 public:
+    RtspManagerCallbacks()              = default;
+    virtual ~RtspManagerCallbacks() = default;
+    RtspManagerCallbacks(RtspManagerCallbacks const&)                      = delete;    // Copy construct
+    RtspManagerCallbacks(RtspManagerCallbacks&&)                             = delete;   // Move construct
+    RtspManagerCallbacks& operator=(RtspManagerCallbacks const&)            = delete;  // Copy assign
+    RtspManagerCallbacks& operator=(RtspManagerCallbacks&&)                   = default;  // Move assign
+
     // utility funcs
     static void printMsg(GstMessage* msg, const gchar*  msgType);
     static void processMsgType(GstBus *bus, GstMessage* msg, CustomData* data);

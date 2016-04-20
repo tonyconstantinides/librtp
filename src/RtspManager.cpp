@@ -229,9 +229,9 @@ ApiStatus RtspManager::makeElements()
     data.pipeline     = gst_pipeline_new("pipeline");
     data.rtpbin        = gst_element_factory_make("rtpbin", "rtpbin");
     data.rtspsrc      = gst_element_factory_make ("rtspsrc", "source");
-    data.rtph264depay = gst_element_factory_make("rtph264depay", "deplay");
-    data.mpegtsmux  = gst_element_factory_make("mpegtsmux", "mpegtsmux");
-    data.rtph264pay   = gst_element_factory_make ("rtph264pay", "play");
+    data.rtph264depay = gst_element_factory_make("rtph264depay", "rtph264depay");
+    data.mpegtsmux    = gst_element_factory_make("mpegtsmux", "mpegtsmux");
+    data.rtpmp2tpay   = gst_element_factory_make ("rtpmp2tpay", "rtpmp2tpay");
     data.udpsink     = gst_element_factory_make ("udpsink", "sink");
  
     if (!data.pipeline)
@@ -254,9 +254,9 @@ ApiStatus RtspManager::makeElements()
     {
         return fatalApiState("mpegtsmux element could not be created!");
     }
-    if (!data.rtph264pay)
+    if (!data.rtpmp2tpay)
     {
-         return fatalApiState("rtph264pay element could not be created!");
+         return fatalApiState("rtpmp2tpay element could not be created!");
     }
     if (!data.udpsink )
     {
@@ -327,14 +327,16 @@ ApiStatus RtspManager::setupPipeLine()
     {
         logdbg("rmpegtsmux added to rtspbin!");
     }
-    
-    if (!gst_bin_add(GST_BIN(data.rtpbin),   data.rtph264pay ))
+
+
+    if (!gst_bin_add(GST_BIN(data.rtpbin),   data.rtpmp2tpay ))
     {
-        return errorApiState( "Unable to add rtph264pay to rtpbin!");
+        return errorApiState( "Unable to add rtpmp2tpay to rtpbin!");
     } else
     {
-       logdbg("rtph264pay added to rtspbin!");
+       logdbg("rtpmp2tpay added to rtspbin!");
     }
+
 
     if (!gst_bin_add(GST_BIN(data.rtpbin),   data.udpsink ))
     {
@@ -347,16 +349,37 @@ ApiStatus RtspManager::setupPipeLine()
     if (!gst_bin_add(GST_BIN(data.pipeline),   data.rtpbin ))
     {
         return errorApiState("Unable to add rtpbin to the pipeline!");
-    } else
+    } 
+    else
     {
         logdbg("rtpbin added to pipeline!");
     }
     
-   if (!gst_element_link_many (data.rtph264depay, data.mpegtsmux, data.rtph264pay, data.udpsink,   NULL))
+   if (!gst_element_link(data.rtph264depay, data.mpegtsmux))
    {
-        return errorApiState("Error Linking elements within pipeline");
-   } else {
-        logdbg("rtph264depay, mpegtsmux, rtph264pay and udpsink added to pipeline!");
+      return errorApiState("Error Linking elements rtph264depay to mpegtsmux!");
+   }
+   else
+   {
+     logdbg("rtph264depay linked to mpegtsmux .....");
+   }
+   
+   if (!gst_element_link(data.mpegtsmux, data.rtpmp2tpay))
+   {
+      return errorApiState("Error Linking elements mpegtsmux to rtpmp2tpay!");
+   }
+   else
+   {
+     logdbg("mpegtsmux linked to rtpmp2tpay .....");
+   }
+
+   if (!gst_element_link(data.rtpmp2tpay, data.udpsink))
+   {
+      return errorApiState("Error Linking elements rtpmp2tpay to udpsink!");
+   }
+    else
+   {
+       logdbg("rtpmp2tpay linked to udpsink .....");
    }
 
    logdbg("Adding Rtpbin callbacks .....");
@@ -441,7 +464,7 @@ ApiStatus RtspManager::fatalApiState(const gchar * msg)
 void RtspManagerCallbacks::on_pad_added_cb (GstElement *element, GstPad *pad, CustomData*  data)
 {
     GstPad *sinkpad;
-    GstElement *decoder = data->rtph264pay;
+    GstElement *decoder = data->rtph264depay;
     /* We can now link this pad with the rtsp-decoder sink pad */
     logdbg ("Dynamic pad created, linking source/demuxer");
     sinkpad = gst_element_get_static_pad (decoder, "sink");
@@ -546,11 +569,6 @@ void RtspManagerCallbacks::rtspsrc_pad_added_cb (GstElement* rtspsrc, GstPad* pa
             g_free (dynamic_pad_name);
             return;
         }
-        else if(gst_element_link_pads(data->rtspsrc, dynamic_pad_name, data->rtph264pay, "sink")){
-            logdbg("Pad for rtph264pay linked");
-            g_free (dynamic_pad_name);
-            return;
-       }
     }
     
     GstPad* send_rtp_sink = gst_element_get_request_pad (data->rtpbin,"send_rtp_sink_0");
@@ -689,7 +707,7 @@ void RtspManagerCallbacks::processMsgType(GstBus *bus, GstMessage* msg, CustomDa
             logdbg("Allocating space for the url to pass to the decoder!");
             char buffer[50];
             url = buffer;
-            std::strcpy(url,"udp://127.0.0.1:8000");
+            std::strcpy(url,"rtp://127.0.0.1:8000");
             if (pdata != NULL) 
             {    
                 logdbg("Calling the connected() callback!!!!");
