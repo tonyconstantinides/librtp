@@ -8,6 +8,14 @@
 
 #ifndef Common_h
 #define Common_h
+#include <foundation/foundation.hpp>
+#include <functional>
+#include <string>
+#include <memory>
+#include <unistd.h>
+#include <pthread.h>
+#include <vector>
+#include <map>
 
 class StreamManager;
 class RtspManager;

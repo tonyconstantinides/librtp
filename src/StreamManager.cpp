@@ -8,29 +8,28 @@
 
 #include "StreamManager.hpp"
 
+StreamManagerRef StreamManager::instance = nullptr;
 
 StreamManagerRef StreamManager::createStreamManager()
 {
     logdbg("***************************************");
     logdbg("Entering createStreamManager.......");
-    refCounts++;
     instance = std::shared_ptr<StreamManager>(new StreamManager);
     logdbg("Leaving createStreamManager.......");
     logdbg("***************************************");
     return instance;
 }
 
-StreamManager::StraemManager()
-: ApiState(ApiState::OK)
+StreamManager::StreamManager()
 {
     logdbg("Entering StreamManager constructor.......");
     logdbg("Exiting StreaManager constructor.......");
 }
 
-std::string StreamManager::connectToH264Stream(CamParmsEncription& camAuth)
+ApiStatus StreamManager::connectToH264Stream(CamParmsEncription& camAuth)
 {
     logdbg("Entering StreamManager::connectToH264Stream.......");
-    std:string encodedStr;
+    std::string encodedStr;
  
     // decode it
     encodedStr =  camAuth.getCameraGuid();
@@ -50,19 +49,20 @@ std::string StreamManager::connectToH264Stream(CamParmsEncription& camAuth)
     
     encodedStr =  camAuth.getQueryParms();
     std::string  queryParms = camAuth.base64_decode(encodedStr);
-    
     logdbg("Leaving StreamManager::connectToH264Stream.......");
-}
+    return ApiStatus::OK;
+}   
 
-std::string StreamManager::connectToMJPEGStream(CamParmsEncription& camAuth);
+ApiStatus StreamManager::connectToMJPEGStream(CamParmsEncription& camAuth)
 {
     logdbg("Entering StreamManager::connectToMJPEGStream.......");
-    
     logdbg("Leaving StreamManager::connectToMJPEGStream.......");
+    return ApiStatus::OK;
 }
 
 ApiStatus StreamManager::disconnectStream(std::string streamID)
 {
     logdbg("Entering StreamManager::disconnectStream.......");
     logdbg("Leaving StreamManager::disconnectStream.......");
+    return ApiStatus::OK;
 }

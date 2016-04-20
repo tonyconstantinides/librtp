@@ -8,12 +8,10 @@
 
 #ifndef RtspManager_hpp
 #define RtspManager_hpp
-#include <memory>
 #include <gio/gio.h>
 #include <gst/gst.h>
 #include <gst/rtsp/gstrtspconnection.h>
 #include <functional>
-#include <string>
 #include "Common.hpp"
 #include "CamParmsEncription.hpp"
 

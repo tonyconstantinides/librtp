@@ -5,11 +5,16 @@ set(CMAKE_XCODE_ORGANIZATIONNAME "EVA Automation, Inc.")
 list(
     APPEND SOURCE_FILES
     RtspManager.cpp
+    StreamManager.cpp
+	CamParmsEncription.cpp
 )
 
 list(
     APPEND HEADER_FILES
     RtspManager.hpp
+    StreamManager.hpp
+    CamParmsEncription.hpp
+    Common.hpp
 )
 
 add_library(${PROJECT_NAME} SHARED ${SOURCE_FILES})
