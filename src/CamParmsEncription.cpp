@@ -15,12 +15,12 @@ static const std::string base64_chars =
 
 
 CamParmsEncription::CamParmsEncription()
-: ApiState(ApiStatus::OK), encriptedData(nullptr),cameraGuid(nullptr),
- userName(nullptr),  password(nullptr), host(nullptr),  port(nullptr),  abspath(nullptr), queryParms(nullptr)
+:  encriptedData(nullptr),cameraGuid(nullptr), userName(nullptr),  password(nullptr),
+   host(nullptr),  port(nullptr),  abspath(nullptr), queryParms(nullptr)
 {
 }
 
-ApiStatus    CamParmsEncription::setCameraGuid(std::string guid)
+ApiStatus CamParmsEncription::setCameraGuid(std::string guid)
 {
     if (guid == "" || guid.length() == 0)
        return ApiStatus::FAIL;
@@ -33,7 +33,7 @@ ApiStatus    CamParmsEncription::setCameraGuid(std::string guid)
     return ApiStatus::OK;
 }
 
-ApiStatus    CamParmsEncription::setUserName(std::string username)
+ApiStatus CamParmsEncription::setUserName(std::string username)
 {
     if (username == "" || username.length() == 0)
         return ApiStatus::FAIL;
@@ -46,7 +46,7 @@ ApiStatus    CamParmsEncription::setUserName(std::string username)
     return ApiStatus::OK;
 }
 
-ApiStatus    CamParmsEncription::setPassword(std::string password)
+ApiStatus CamParmsEncription::setPassword(std::string password)
 {
     if (password == "" || password.length() == 0)
         return ApiStatus::FAIL;
@@ -59,7 +59,7 @@ ApiStatus    CamParmsEncription::setPassword(std::string password)
     return ApiStatus::OK;
 }
 
-ApiStatus    CamParmsEncription::setHost(std::string host)
+ApiStatus CamParmsEncription::setHost(std::string host)
 {
     if (host == "" || host.length() == 0)
         return ApiStatus::FAIL;
@@ -72,7 +72,7 @@ ApiStatus    CamParmsEncription::setHost(std::string host)
     return ApiStatus::OK;
 }
 
-ApiStatus    CamParmsEncription::setPort(std::string port)
+ApiStatus CamParmsEncription::setPort(std::string port)
 {
     if (port == "" || port.length() == 0)
         return ApiStatus::FAIL;
@@ -85,7 +85,7 @@ ApiStatus    CamParmsEncription::setPort(std::string port)
     return ApiStatus::OK;
 }
 
-ApiStatus   CamParmsEncription::setAbsPath(std::string path)
+ApiStatus CamParmsEncription::setAbsPath(std::string path)
 {
     if (path == "" || path.length() == 0)
         return ApiStatus::FAIL;
@@ -98,7 +98,7 @@ ApiStatus   CamParmsEncription::setAbsPath(std::string path)
     return ApiStatus::OK;
 }
 
-ApiStatus    CamParmsEncription::setQueryParms(std::string parms)
+ApiStatus CamParmsEncription::setQueryParms(std::string parms)
 {
     if (parms == "" || parms.length() == 0)
         return ApiStatus::FAIL;

@@ -15,6 +15,7 @@
 #include "Common.hpp"
 #include "CamParmsEncription.hpp"
 
+
 /* Structure to contain all our information, so we can pass it around */
 typedef struct _CustomData{
     GMainLoop *main_loop;
@@ -28,18 +29,20 @@ typedef struct _CustomData{
     GstElement*     identity;
     GstElement*   udpsink;
     GstElement*   udpsrc;
-    gboolean playing;             /* Are we in the PLAYING state? */
-    gboolean terminate;        /* Should we terminate execution? */
-    gboolean seek_enabled; /* Is seeking enabled for this media? */
-    gboolean seek_done;      /* Have we performed the seek already? */
-    gint64   duration;        /* How long does this media last, in nanoseconds */
-    gchar*   url;
+    GstBus*         bus;
+    GstMessage *                msg;
+    GstRTSPConnection* connection;
+    GstRTSPUrl*             url;
+    GSocket*                writeSocket;
+    GSocket*                readSocket;
+    GstRTSPWatch*  rtspWatch;
+    gchar*   connectionUrl;
     std::function<void(char*)> connectionCB;
 }CustomData;
 
 typedef std::shared_ptr<CustomData> CustomDataRef;
 
-class RtspManager
+class RtspManager 
 {
 public:
     static  RtspManagerRef  createNewRtspManager();
@@ -51,55 +54,43 @@ public:
     
     static short getRefCount();
 
-          // actual api
-    ApiStatus connectToIPCam( const gchar * userName,
-                                     const gchar * password,
-                                     const gchar * host,
-                                     guint16  port,
-                                     const gchar* abspath,
-                                     const gchar* queryParms);
-    void addConnectionCallback(std::function<void(char*)>  newCallBack) {
-        data.connectionCB = newCallBack; }
+    // the structure containes base64 encoded parms
+    ApiStatus connectToIPCam(CamParmsEncription& camAuth);
+    void addConnectionCallback(std::function<void(char*)>  newCallBack)
+     { data.connectionCB = newCallBack; }
     
     ApiStatus makeElements();
     ApiStatus setupPipeLine();
     ApiStatus startLoop();
     static  short messageCount;
-    // everything cool
-    ApiStatus  okApiState();
-    // clear api state used if had previous error
-    ApiStatus  clearApiState( );
+    std::string getName() { return name; } 
+    void setName(std::string streamName) { name = streamName;}   
     // error but continue
     ApiStatus  errorApiState( const gchar * msg);
     // fatal error do not continue
     ApiStatus  fatalApiState( const gchar* msg);
     // test the ip connection before we try to use it
     ApiStatus testConnection();
-    // the current api state
-    ApiStatus ApiState;
+    void activateStream(bool ready)      { activeStream = ready; }
+    void validStreamMethod(bool valid) { validStreamingMethod = valid; }
 protected:
     RtspManager();
     ApiStatus  createElements();
     ApiStatus  addElementsToBin();
-    void           setElementsProperties();
-    void           addCallbacks();
-    void           cleanUp();
+    void       setElementsProperties();
+    void       addCallbacks();
+    void       removeCallbacks();
+    void       cleanUp();
     static RtspManagerRef instance;
- 
-    GstBus *bus;
-    GstMessage *msg;
-    GstRTSPConnection* connection;
-    GstRTSPUrl* url;
-    GSocket* writeSocket;
-    GSocket* readSocket;
-    GstRTSPWatch*  rtspWatch;
+    std::string name;
+    bool activeStream;
+    bool validStreamingMethod;
     CallbacksRef callbacksRef;
     /* Initialize our data structure */
     CustomData data;
     GstRTSPUrl connection_info;
     std::string connection_url;
-    static short refCounts;
-    static std::vector<RtspManagerRef>  instanceList ;
+    ApiStatus ApiState;
 };
 
 

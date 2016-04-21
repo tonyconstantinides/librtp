@@ -7,59 +7,45 @@
 
 #include <foundation/foundation.hpp>
 #include "RtspManager.hpp"
-#include <gio/gio.h>
-#include <gst/gst.h>
-#include <gst/rtsp/gstrtsp.h>
-#include <gst/gstutils.h>
-#ifdef HAVE_CONFIG_H
-# include <config.h>
-#endif
-#include <gst/base/gstpushsrc.h>
-#include <unistd.h>
-#include <pthread.h>
-#include <stdlib.h>
-#include <vector>
+#include "Common.hpp"
+#include "CamParmsEncription.hpp"
 
 using namespace Jetpack::Foundation;
-
 RtspManagerRef RtspManager::instance = nullptr;
 short RtspManager::messageCount = 0;
-short  RtspManager::refCounts = 0;
-std::vector<RtspManagerRef> RtspManager::instanceList = {};
+
 
 RtspManager::RtspManager()
-:  ApiState(ApiStatus::OK),
-   bus(nullptr),
-   msg(nullptr),
-   connection(nullptr),
-   url(nullptr),
-   writeSocket(nullptr),
-   readSocket(nullptr),
-   rtspWatch(nullptr)
+: name(nullptr),
+activeStream(false),
+validStreamingMethod(false),
+connection_url(""),
+ApiState(ApiStatus::OK)
 {
     logdbg("***************************************");
     logdbg("Entering RtspManager constructor.......");
- 
-    data =
-    {
-        nullptr,
-        nullptr,
-        nullptr,
-        nullptr ,
-        nullptr,
-        nullptr,
-        nullptr,
-        nullptr ,
-        nullptr,
-        nullptr,
-        nullptr,
-        FALSE,
-        FALSE,
-        FALSE,
-        FALSE,
-        0,
-        nullptr
-    };
+    // slow but better for code maintenane issues
+    data.main_loop = nullptr;
+    data.context = nullptr;
+    data.pipeline = nullptr;
+    data.rtpbin    = nullptr;
+    data.rtspsrc = nullptr;
+    data.rtph264depay = nullptr;
+    data.mpegtsmux = nullptr;
+    data.rtpmp2tpay = nullptr;
+    data.identity = nullptr;
+    data.udpsink = nullptr;
+    data.udpsrc = nullptr;
+    data.bus = nullptr;
+    data.msg = nullptr;
+    data.connection = nullptr;
+    data.url = nullptr;
+    data.writeSocket = nullptr;
+    data.readSocket = nullptr;
+    data.rtspWatch    = nullptr;
+    data.connectionUrl = nullptr;
+
+    // smaller struct do it the C++ 11 way
     connection_info =
     {
         GST_RTSP_LOWER_TRANS_TCP,
@@ -85,16 +71,10 @@ RtspManager::RtspManager()
     logdbg("***************************************");
 }
 
-short  RtspManager::getRefCount()
-{
-    return refCounts;
-}
-
 RtspManagerRef RtspManager::createNewRtspManager()
 {
     logdbg("***************************************");
     logdbg("Entering createNewRtspManager.......");
-    refCounts++;
     instance = std::shared_ptr<RtspManager>(new RtspManager);
     logdbg("Leaving createNewRtspManager.......");
     logdbg("***************************************");
@@ -102,23 +82,43 @@ RtspManagerRef RtspManager::createNewRtspManager()
     //instanceList.push_back(managerRef);
 }
 
-ApiStatus RtspManager::connectToIPCam( const gchar * userName,
-                                  const gchar * password,
-                                  const gchar * host,
-                                  guint16  port,
-                                  const gchar* abspath,
-                                  const gchar* query)
+ApiStatus RtspManager::connectToIPCam( CamParmsEncription& camAuth)
 {
     logdbg("***************************************");
     logdbg("Entering connectToIPCam.......");
     GstRTSPResult result;
     GstRTSPAuthMethod method = GST_RTSP_AUTH_DIGEST;
-    connection_info.user = strdup(userName);
-    connection_info.passwd = strdup(password);
-    connection_info.host = strdup(host);
-    connection_info.port = port;
-    connection_info.abspath = strdup(abspath);
-    connection_info.query = strdup(query);
+    // decode parms
+    std::string encodedStr;
+    // decode it
+    encodedStr =  camAuth.getCameraGuid();
+    std::string cameraGuid = camAuth.base64_decode(encodedStr);
+    
+    encodedStr = camAuth.getUserName();
+    std::string userName = camAuth.base64_decode(encodedStr);
+    
+    encodedStr = camAuth.getPassword();
+    std::string password = camAuth.base64_decode(encodedStr);
+    
+    encodedStr = camAuth.getHost();
+    std::string  host  = camAuth.base64_decode(encodedStr);
+    
+    encodedStr = camAuth.getPort();
+    std::string  port   = camAuth.base64_decode(encodedStr);
+    
+    encodedStr = camAuth.getAbsPath();
+    std::string  absPath = camAuth.base64_decode(encodedStr);
+    
+    encodedStr =  camAuth.getQueryParms();
+    std::string  queryParms = camAuth.base64_decode(encodedStr);
+
+    connection_info.user        = strdup(userName.c_str());
+    connection_info.passwd = strdup(password.c_str());
+    connection_info.host      = strdup(host.c_str());
+    connection_info.port       = atoi(port.c_str());
+    connection_info.abspath  = strdup(absPath.c_str());
+    connection_info.query     = strdup(queryParms.c_str());
+    
     logdbg("Connection to IPCamera");
     char debug_string[100];
     sprintf(debug_string, "Host is:   %s",   connection_info.host );
@@ -129,16 +129,13 @@ ApiStatus RtspManager::connectToIPCam( const gchar * userName,
     logdbg(debug_string);
     sprintf(debug_string, "User name:  %s", connection_info.user );
     logdbg(debug_string);
-    result = gst_rtsp_connection_create(&connection_info, &connection);
+    result = gst_rtsp_connection_create(&connection_info, &data.connection);
     if (result != GST_RTSP_OK)
     {
         return fatalApiState("RtspManager::gst_rtsp_connection_create failed!");
     }
-    result = gst_rtsp_connection_set_auth(connection,
-                                          method,
-                                          userName,
-                                          password 
-                                          );
+    result = gst_rtsp_connection_set_auth(data.connection,
+                            method,  userName.c_str(),  password.c_str()  );
     if (result != GST_RTSP_OK)
     {
         return errorApiState("RtspManager::gst_rtsp_connection_set_auth failed!");
@@ -147,7 +144,7 @@ ApiStatus RtspManager::connectToIPCam( const gchar * userName,
     time.tv_sec = 30;
     time.tv_usec = 30000;
     
-    result = gst_rtsp_connection_connect(connection, &time);
+    result = gst_rtsp_connection_connect(data.connection, &time);
     if (result != GST_RTSP_OK)
     {
           return fatalApiState("RtspManager::gst_rtsp_connection_connect failed!");
@@ -164,13 +161,13 @@ ApiStatus RtspManager::connectToIPCam( const gchar * userName,
      connection_url.append(connection_info.host);
      connection_url.append(":");
      char buffer[5];
-     sprintf(buffer, "%u", port);
+     sprintf(buffer, "%u", atoi(port.c_str()) );
      connection_url.append(buffer);
      connection_url.append(connection_info.abspath);
      connection_url.append(connection_info.query);
      logdbg("Setting the connection url");
-     data.url = new gchar(connection_url.length() + 1);
-     std::strcpy(data.url, connection_url.c_str());
+     data.connectionUrl = new gchar(connection_url.length() + 1);
+     std::strcpy(data.connectionUrl, connection_url.c_str());
      logdbg(data.url);
      logdbg("Connection url set!");
     
@@ -183,42 +180,42 @@ ApiStatus RtspManager::connectToIPCam( const gchar * userName,
 
 ApiStatus RtspManager::testConnection()
 {
-    readSocket = gst_rtsp_connection_get_read_socket(connection);
-    if (!readSocket)
+    data.readSocket = gst_rtsp_connection_get_read_socket(data.connection);
+    if (!data.readSocket)
     {
         return errorApiState("RtspManager::gst_rtsp_connection_get_read_socket failed!");
     }
-    writeSocket =  gst_rtsp_connection_get_write_socket(connection);
-    if (!writeSocket)
+    data.writeSocket =  gst_rtsp_connection_get_write_socket(data.connection);
+    if (!data.writeSocket)
     {
         return errorApiState("RtspManager::gst_rtsp_connection_get_write_socket failed!");
     }
-    url =  gst_rtsp_connection_get_url((const  GstRTSPConnection *)connection);
-    if (url == NULL)
+    data.url =  gst_rtsp_connection_get_url((const  GstRTSPConnection *)data.connection);
+    if (data.url == NULL)
     {
         return errorApiState("RtspManager::gst_rtsp_connection_get_url failed!");
     }
     // compare to ensure we dealing with the same thing
-    if (strcmp(url->user, connection_info.user) != 0 )
+    if (strcmp(data.url->user, connection_info.user) != 0 )
     {
         return errorApiState(" RtspManager::gst_rtsp_connection_get_url failed for username!");
     }
-    if (strcmp(url->passwd , connection_info.passwd) != 0 )
+    if (strcmp(data.url->passwd , connection_info.passwd) != 0 )
     {
         return errorApiState("RtspManager::gst_rtsp_connection_get_url failed for password!");
     }
-    if (strcmp(url->host,  connection_info.host) != 0 )
+    if (strcmp(data.url->host,  connection_info.host) != 0 )
     {
         return errorApiState("RtspManager::gst_rtsp_connection_get_url failed for host!");
     }
-    if (url->port !=   connection_info.port)
+    if (data.url->port !=   connection_info.port)
     {
         return errorApiState("RtspManager::gst_rtsp_connection_get_url failed for host!");
     }
     logdbg("Freeing the test connection........");
     // free the test client connection objects
-    gst_rtsp_connection_close(connection);
-    gst_rtsp_connection_free(connection);
+    gst_rtsp_connection_close(data.connection);
+    gst_rtsp_connection_free(data.connection);
     return ApiState;
 }
 
@@ -257,10 +254,10 @@ ApiStatus RtspManager::startLoop()
     logdbg("Creating the main loop...");
     data.main_loop = g_main_loop_new (NULL, FALSE);
     // add a signal on the bus for messages
-    bus = gst_element_get_bus( data.pipeline);
-    g_signal_connect (bus, "message",  G_CALLBACK (callbacksRef->bus_call), &data);
-    gst_bus_add_signal_watch_full (bus, G_PRIORITY_DEFAULT);
-    msg = gst_bus_pop_filtered (bus, GST_MESSAGE_ANY);
+    data.bus = gst_element_get_bus( data.pipeline);
+    g_signal_connect (data.bus, "message",  G_CALLBACK (callbacksRef->bus_call), &data);
+    gst_bus_add_signal_watch_full (data.bus, G_PRIORITY_DEFAULT);
+    data.msg = gst_bus_pop_filtered (data.bus, GST_MESSAGE_ANY);
     // Start playing
     GstStateChangeReturn statechange = gst_element_set_state (data.pipeline, GST_STATE_PLAYING);
     if (statechange == GST_STATE_CHANGE_FAILURE)
@@ -281,11 +278,11 @@ void RtspManager::cleanUp()
 {
     // free the bus
     gst_element_set_state (data.pipeline, GST_STATE_NULL);
-    gst_bus_remove_signal_watch(bus);
-    if (msg)
-        gst_message_unref (msg);
-    if (bus)
-        gst_object_unref (bus);
+    gst_bus_remove_signal_watch(data.bus);
+    if (data.msg)
+        gst_message_unref (data.msg);
+    if (data.bus)
+        gst_object_unref (data.bus);
     // free the pipeline
     if (data.pipeline)
         gst_object_unref (data.pipeline);
@@ -309,6 +306,8 @@ void RtspManager::cleanUp()
         gst_object_unref(data.udpsink);
     if (data.udpsrc)
         gst_object_unref(data.udpsrc);
+    // now remove signals
+    removeCallbacks();
 }
 
 ApiStatus RtspManager::createElements()
@@ -474,6 +473,12 @@ void RtspManager::addCallbacks()
     g_signal_connect (data.rtspsrc,"pad-added",       G_CALLBACK(RtspManagerCallbacks::rtspsrc_pad_added_cb),   &data);
     g_signal_connect (data.rtspsrc, "pad-removed",    G_CALLBACK(RtspManagerCallbacks::rtspsrc_pad_removed_cb), &data);
     g_signal_connect (data.rtspsrc, "no-more-pads",   G_CALLBACK(RtspManagerCallbacks::rtspsrc_no_more_pads_cb), &data);
+}
+
+void RtspManager::removeCallbacks()
+{
+    g_signal_handlers_disconnect_by_data(data.rtpbin, &data);
+    g_signal_handlers_disconnect_by_data(data.rtspsrc, &data);
 }
 
 ApiStatus RtspManager::errorApiState( const gchar * msg)
@@ -650,7 +655,6 @@ void RtspManagerCallbacks::printMsg(GstMessage* msg, const gchar*  msgType)
 
 void RtspManagerCallbacks::processMsgType(GstBus *bus, GstMessage* msg, CustomData* pdata)
 {
-   
     char* url;
     if (msg == NULL)
     {
@@ -667,10 +671,6 @@ void RtspManagerCallbacks::processMsgType(GstBus *bus, GstMessage* msg, CustomDa
         case GST_MESSAGE_EOS: {
             printMsg(msg, " GST_MESSAGE_EOS");
             logdbg ("End of stream\n");
-            if (pdata != NULL)
-            {
-                pdata->terminate = TRUE;
-            }
             if (pdata != NULL)
             {    
                 g_main_loop_quit ( pdata->main_loop );

@@ -5,6 +5,7 @@ set(CMAKE_XCODE_ORGANIZATIONNAME "EVA Automation, Inc.")
 list(
     APPEND SOURCE_FILES
     RtspManager.cpp
+    MpegManager.cpp
     StreamManager.cpp
 	CamParmsEncription.cpp
 )
@@ -12,6 +13,7 @@ list(
 list(
     APPEND HEADER_FILES
     RtspManager.hpp
+    MpegManager.hpp
     StreamManager.hpp
     CamParmsEncription.hpp
     Common.hpp

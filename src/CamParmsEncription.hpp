@@ -23,7 +23,6 @@ public:
     
     std::string base64_encode(BYTE const* buf, unsigned int bufLen);
     std::string base64_decode(std::string const& encoded_string);
-    ApiStatus ApiState;
     
     static bool is_base64(unsigned char c);
     // always return encoded values and let the client decode
