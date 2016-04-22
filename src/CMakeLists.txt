@@ -5,7 +5,7 @@ set(CMAKE_XCODE_ORGANIZATIONNAME "EVA Automation, Inc.")
 list(
     APPEND SOURCE_FILES
     RtspManager.cpp
-    MpegManager.cpp
+    MjpegManager.cpp
     StreamManager.cpp
 	CamParmsEncription.cpp
 )
@@ -13,7 +13,7 @@ list(
 list(
     APPEND HEADER_FILES
     RtspManager.hpp
-    MpegManager.hpp
+    MjpegManager.hpp
     StreamManager.hpp
     CamParmsEncription.hpp
     Common.hpp
@@ -45,3 +45,9 @@ target_include_directories(${PROJECT_NAME} SYSTEM PUBLIC ${FOUNDATION_INCLUDE_DI
 
 install(TARGETS ${PROJECT_NAME} DESTINATION lib)
 install(FILES ${HEADER_FILES} DESTINATION include/evartp)
+
+    add_subdirectory("thirdparty")
+add_subdirectory("thirdparty/catch")
+include_directories(${CATCH_INCLUDE_DIR} ${COMMON_INCLUDES})
+enable_testing(true)  # Enables unit-testing.
+
