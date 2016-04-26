@@ -16,14 +16,10 @@ short RtspManager::messageCount = 0;
 
 
 RtspManager::RtspManager()
-: name(nullptr),
-activeStream(false),
-validStreamingMethod(false),
-connection_url(""),
-ApiState(ApiStatus::OK)
 {
     logdbg("***************************************");
     logdbg("Entering RtspManager constructor.......");
+    
     // slow but better for code maintenane issues
     data.main_loop = nullptr;
     data.context = nullptr;
@@ -274,7 +270,7 @@ ApiStatus RtspManager::startLoop()
     return ApiState;
 }
 
-void RtspManager::cleanUp()
+ApiStatus RtspManager::cleanUp()
 {
     // free the bus
     gst_element_set_state (data.pipeline, GST_STATE_NULL);
@@ -307,13 +303,14 @@ void RtspManager::cleanUp()
     if (data.udpsrc)
         gst_object_unref(data.udpsrc);
     // now remove signals
-    removeCallbacks();
+     ApiState =  removeCallbacks();
+    return ApiState;
 }
 
 ApiStatus RtspManager::createElements()
 {
     data.pipeline     = gst_pipeline_new("pipeline");
-    data.rtpbin        = gst_element_factory_make("rtpbin", "rtpbin");
+    data.rtpbin        = gst_element_factory_make("rtp				bin", "rtpbin");
     data.rtspsrc      = gst_element_factory_make ("rtspsrc", "source");
     data.rtph264depay = gst_element_factory_make("rtph264depay", "rtph264depay");
     data.mpegtsmux    = gst_element_factory_make("mpegtsmux", "mpegtsmux");
@@ -351,7 +348,7 @@ ApiStatus RtspManager::createElements()
     return ApiState;
 }
 
-void  RtspManager::setElementsProperties()
+ApiStatus  RtspManager::setElementsProperties()
 {
     g_object_set( G_OBJECT (data.rtpbin),
                  "name",         "rtpbin",
@@ -382,6 +379,7 @@ void  RtspManager::setElementsProperties()
                  "sync",      FALSE,
                  "async",    FALSE,
                  NULL);
+    return ApiState;
 }
 
 ApiStatus RtspManager::addElementsToBin()
@@ -464,7 +462,7 @@ ApiStatus RtspManager::addElementsToBin()
     return ApiState;
 }
 
-void RtspManager::addCallbacks()
+ApiStatus RtspManager::addCallbacks()
 {
     logdbg("Adding Rtpbin callbacks .....");
     g_signal_connect (data.rtpbin, "pad-added", G_CALLBACK (RtspManagerCallbacks::rtpbin_pad_added_cb), &data);
@@ -473,24 +471,14 @@ void RtspManager::addCallbacks()
     g_signal_connect (data.rtspsrc,"pad-added",       G_CALLBACK(RtspManagerCallbacks::rtspsrc_pad_added_cb),   &data);
     g_signal_connect (data.rtspsrc, "pad-removed",    G_CALLBACK(RtspManagerCallbacks::rtspsrc_pad_removed_cb), &data);
     g_signal_connect (data.rtspsrc, "no-more-pads",   G_CALLBACK(RtspManagerCallbacks::rtspsrc_no_more_pads_cb), &data);
+    return ApiState;
 }
 
-void RtspManager::removeCallbacks()
+ApiStatus RtspManager::removeCallbacks()
 {
     g_signal_handlers_disconnect_by_data(data.rtpbin, &data);
     g_signal_handlers_disconnect_by_data(data.rtspsrc, &data);
-}
-
-ApiStatus RtspManager::errorApiState( const gchar * msg)
-{
-    logerr() << msg;
-    return  ApiStatus::FAIL;
-}
-
-ApiStatus RtspManager::fatalApiState(const gchar * msg)
-{
-    logerr() << msg;
-    return  ApiStatus::FATAL_ERROR;
+    return ApiState;
 }
 
 void RtspManagerCallbacks::on_pad_added_cb (GstElement *element, GstPad *pad, CustomData*  data)

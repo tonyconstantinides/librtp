@@ -38,9 +38,9 @@ class CamParmsEncription;
 
 enum   API_CALL_STATUS {OK, CLEAR, FAIL, FATAL_ERROR };
 enum   STREAM_TYPE {MJPEG_ONLY, H264_ONLY, H264_AND_MJPEG};
+typedef std::shared_ptr<StreamManager> StreamManagerRef;
 typedef std::shared_ptr<RtspManager> RtspManagerRef;
 typedef std::shared_ptr<RtspManagerCallbacks> CallbacksRef;
-typedef std::shared_ptr<StreamManager> StreamManagerRef;
 typedef std::shared_ptr<MjpegManager>  MjpegManagerRef;
 typedef API_CALL_STATUS   ApiStatus;
 typedef STREAM_TYPE         StreamType;

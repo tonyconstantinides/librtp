@@ -11,13 +11,13 @@
 #include <gio/gio.h>
 #include <gst/gst.h>
 #include <gst/rtsp/gstrtspconnection.h>
-#include <functional>
 #include "Common.hpp"
+#include "IPStreamManager.hpp"
 #include "CamParmsEncription.hpp"
 
 
 /* Structure to contain all our information, so we can pass it around */
-typedef struct _CustomData{
+typedef struct _Data{
     GMainLoop *main_loop;
     GstContext*   context;
     GstElement*   pipeline;
@@ -38,11 +38,11 @@ typedef struct _CustomData{
     GstRTSPWatch*  rtspWatch;
     gchar*   connectionUrl;
     std::function<void(char*)> connectionCB;
-}CustomData;
+}CustomData;		
 
 typedef std::shared_ptr<CustomData> CustomDataRef;
 
-class RtspManager 
+class RtspManager : public IPStreamManager
 {
 public:
     static  RtspManagerRef  createNewRtspManager();
@@ -59,37 +59,26 @@ public:
     void addConnectionCallback(std::function<void(char*)>  newCallBack)
      { data.connectionCB = newCallBack; }
     
-    ApiStatus makeElements();
-    ApiStatus setupPipeLine();
-    ApiStatus startLoop();
+    virtual ApiStatus makeElements() override;
+    virtual ApiStatus setupPipeLine()  override;
+    virtual ApiStatus startLoop()          override;
     static  short messageCount;
-    std::string getName() { return name; } 
-    void setName(std::string streamName) { name = streamName;}   
-    // error but continue
-    ApiStatus  errorApiState( const gchar * msg);
-    // fatal error do not continue
-    ApiStatus  fatalApiState( const gchar* msg);
     // test the ip connection before we try to use it
-    ApiStatus testConnection();
-    void activateStream(bool ready)      { activeStream = ready; }
-    void validStreamMethod(bool valid) { validStreamingMethod = valid; }
+    virtual ApiStatus testConnection() override;
+
 protected:
     RtspManager();
-    ApiStatus  createElements();
-    ApiStatus  addElementsToBin();
-    void       setElementsProperties();
-    void       addCallbacks();
-    void       removeCallbacks();
-    void       cleanUp();
+    virtual ApiStatus  createElements() override;
+    virtual ApiStatus  addElementsToBin() override;
+    virtual ApiStatus  setElementsProperties() override;
+    virtual ApiStatus  addCallbacks() override;
+    virtual ApiStatus  removeCallbacks() override ;
+    virtual ApiStatus   cleanUp() override;
     static RtspManagerRef instance;
-    std::string name;
-    bool activeStream;
-    bool validStreamingMethod;
     CallbacksRef callbacksRef;
     /* Initialize our data structure */
     CustomData data;
     GstRTSPUrl connection_info;
-    std::string connection_url;
     ApiStatus ApiState;
 };
 
