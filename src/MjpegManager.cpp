@@ -15,7 +15,14 @@ MjpegManagerRef  MjpegManager::createNewMjpegManager()
 {
     logdbg("***************************************");
     logdbg("Entering createNewMjpegManager.......");
-    instance = std::shared_ptr<MjpegManager>(new MjpegManager);
+    static dispatch_once_t onceToken;
+    dispatch_once(&onceToken, ^{
+        struct _MjpegManager : MjpegManager {
+            _MjpegManager()
+            : MjpegManager() {}
+        };
+        instance = std::make_shared<_MjpegManager>();
+    });
     
     logdbg("Leaving createNewMjpegManager.......");
     logdbg("***************************************");
@@ -24,57 +31,42 @@ MjpegManagerRef  MjpegManager::createNewMjpegManager()
 
 MjpegManager::MjpegManager()
 {
-    data.main_loop      = nullptr;
-    data.context           = nullptr;
-    data.pipeline          = nullptr;
-    data.souphttpsrc    = nullptr;
-    data.tcpserver        = nullptr;
-    data.multipartdemux = nullptr;
-    data.jpegdec          = nullptr;
-    data.ffenc_mpeg4  = nullptr;
-    data.bus                 = nullptr;
-    data.msg                = nullptr;
-    data.connectionUrl = nullptr;
+    logdbg("***************************************");
+    logdbg("Entering MjpegManager constructor.......");
+    logdbg("Leaving MjpegManager constructor.......");
+    logdbg("***************************************");
 }
 
 ApiStatus MjpegManager::connectToIPCam(CamParmsEncription& camAuth)
 {
-    // decode parms
-    std::string encodedStr;
-    // decode it
-    encodedStr =  camAuth.getCameraGuid();
-    std::string cameraGuid = camAuth.base64_decode(encodedStr);
-    
-    encodedStr = camAuth.getUserName();
-    std::string userName = camAuth.base64_decode(encodedStr);
-    
-    encodedStr = camAuth.getPassword();
-    std::string password = camAuth.base64_decode(encodedStr);
-    
-    encodedStr = camAuth.getHost();
-    std::string  host  = camAuth.base64_decode(encodedStr);
-    
-    encodedStr = camAuth.getPort();
-    std::string  port   = camAuth.base64_decode(encodedStr);
-    
-    encodedStr = camAuth.getAbsPath();
-    std::string  absPath = camAuth.base64_decode(encodedStr);
-    
-    encodedStr =  camAuth.getQueryParms();
-    std::string  queryParms = camAuth.base64_decode(encodedStr);
-
-    connection_url.append(host);
+    logdbg("*******************************************************");
+    logdbg("Entering MjpegManager::connectToIPCam()");
+    assignAuth(camAuth);
     connection_url = "http://";
-    connection_url.append(host.c_str());
+    connection_url.append( camAuth.base64_decode(crypto_host).c_str() );
     connection_url.append(":");
-    connection_url.append(port.c_str());
+    connection_url.append(camAuth.base64_decode(crypto_port).c_str() );
     connection_url.append("/");
     connection_url.append("videostream.asf?");
     connection_url.append("user=");
-    connection_url.append(userName.c_str());
+    connection_url.append(camAuth.base64_decode(crypto_userName).c_str() );
     connection_url.append("&pwd=");
-    connection_url.append(password.c_str());
-    ApiState = ApiStatus::OK;
+    connection_url.append(camAuth.base64_decode(crypto_password).c_str() );
+    
+    logdbg("Connection to IPCamera	");
+    char debug_string[100];
+    sprintf(debug_string, "Host is:   %s",   camAuth.base64_decode(crypto_host).c_str()  );
+    logdbg(debug_string);
+    sprintf(debug_string,"Port is: %d",       camAuth.base64_decode(crypto_port).c_str() );
+    logdbg(debug_string);
+    sprintf(debug_string, "Additional Path: %s",  camAuth.base64_decode(crypto_absPath).c_str() );
+    logdbg(debug_string);
+    sprintf(debug_string, "User name:  %s",         camAuth.base64_decode(crypto_userName).c_str() );
+    logdbg(debug_string);
+    
+ 	ApiState = testConnection();
+    logdbg("Leaving MjegManager::connectToIPCam()");
+    logdbg("*******************************************************");
     return ApiState;
 }
 
@@ -82,7 +74,6 @@ ApiStatus MjpegManager::testConnection()
 {
       return ApiState;
 }
-
 
 ApiStatus MjpegManager::makeElements()
 {
@@ -171,12 +162,12 @@ ApiStatus  MjpegManager::addElementsToBin()
 {
     logdbg("***************************************");
     logdbg("Entering addElementsToBin.......");
-    data.pipeline             = gst_pipeline_new("pipeline");
-    data.souphttpsrc        = gst_element_factory_make("souphttpsrc", "souphttpsrc");
-    data.tcpserver           = gst_element_factory_make("tcpserver", "tcpserver");
+    data.pipeline         = gst_pipeline_new("pipeline");
+    data.souphttpsrc      = gst_element_factory_make("souphttpsrc", "souphttpsrc");
+    data.tcpserver        = gst_element_factory_make("tcpserver", "tcpserver");
     data.multipartdemux   = gst_element_factory_make("multipartdemux", "multipartdemux");
-    data.jpegdec               = gst_element_factory_make("jpegdec", "jpegdec");
-    data.ffenc_mpeg4        = gst_element_factory_make("ffenc_mpeg4", "ffenc_mpeg4");
+    data.jpegdec          = gst_element_factory_make("jpegdec", "jpegdec");
+    data.ffenc_mpeg4      = gst_element_factory_make("ffenc_mpeg4", "ffenc_mpeg4");
     
     if (!data.pipeline)
     {

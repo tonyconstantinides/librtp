@@ -12,17 +12,17 @@
 #include "IPStreamManager.hpp"
 
 typedef struct _MjpegData{
-    GMainLoop *         main_loop;
-    GstContext*        context;
-    GstElement*        pipeline;
-    GstElement*        souphttpsrc;
-    GstElement*        tcpserver;
-    GstElement*        multipartdemux;
-    GstElement*        jpegdec;
-    GstElement*        ffenc_mpeg4;
-    GstBus*              bus;
-    GstMessage *       msg;
-    gchar*                connectionUrl;
+    GMainLoop *           main_loop = nullptr;
+    GstContext*           context = nullptr ;
+    GstElement*           pipeline  = nullptr;
+    GstElement*           souphttpsrc = nullptr;
+    GstElement*           tcpserver = nullptr;
+    GstElement*           multipartdemux = nullptr;
+    GstElement*           jpegdec = nullptr;
+    GstElement*           ffenc_mpeg4 = nullptr;
+    GstBus*               bus = nullptr;
+    GstMessage *          msg = nullptr;
+    gchar*                connectionUr = nullptr;
     std::function<void(char*)> connectionCB;
 }MjpegData;
 
@@ -33,28 +33,25 @@ class MjpegManager : public IPStreamManager
 public:
     static  MjpegManagerRef  createNewMjpegManager();
     virtual ~MjpegManager() = default;
-    MjpegManager(MjpegManager const&)                      = delete;    // Copy construct
-    MjpegManager(MjpegManager&&)                             = delete;   // Move construct
-    MjpegManager& operator=(MjpegManager const&)        = delete;  // Copy assign
-    MjpegManager& operator=(MjpegManager&&)               = default;  // Move assign
-    ApiStatus connectToIPCam(CamParmsEncription& value);
-    void activateStream(bool ready)      { activeStream = ready; }
-    void validStreamMethod(bool valid) { validStreamingMethod = valid; }
+    MjpegManager(MjpegManager const&)                  = delete;    // Copy construct
+    MjpegManager(MjpegManager&&)                       = delete;   // Move construct
+    MjpegManager& operator=(MjpegManager const&)       = delete;  // Copy assign
+    MjpegManager& operator=(MjpegManager&&)            = default;  // Move assign
+    ApiStatus connectToIPCam(CamParmsEncription& value) override;
     virtual ApiStatus testConnection()  override;
-
     virtual ApiStatus makeElements() override;
     virtual ApiStatus setupPipeLine() override;
     virtual ApiStatus startLoop() override;
-private:
+protected:
     MjpegManager();
+    static   MjpegManagerRef instance;
+    MjpegData   data;
     virtual ApiStatus  createElements() override;
     virtual ApiStatus  addElementsToBin() override;
-    virtual ApiStatus   setElementsProperties() override;
-    virtual ApiStatus   addCallbacks() override;
-    virtual ApiStatus   removeCallbacks() override;
-    virtual ApiStatus   cleanUp() override;
-    MjpegData   data;
-    static         MjpegManagerRef instance;
+    virtual ApiStatus  setElementsProperties() override;
+    virtual ApiStatus  addCallbacks() override;
+    virtual ApiStatus  removeCallbacks() override;
+    virtual ApiStatus  cleanUp() override;
 };
 
 #endif /* MjpegManager_hpp */

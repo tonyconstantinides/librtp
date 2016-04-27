@@ -18,12 +18,12 @@ public:
     static StreamManagerRef createStreamManager();
     virtual ~StreamManager();
     // all auth stuff is encripted Base64, no cionnect info is sent in the clear
-    ApiStatus connectToStream(CamParmsEncription& camAuth, StreamType type );
+    ApiStatus connectToStream(CamParmsEncription& camAuth, StreamType type);
     ApiStatus disconnectStreams(std::string streamID);
-    StreamManager(StreamManager const&)                 = delete;
-    StreamManager(StreamManager&&)                        = delete;
+    StreamManager(StreamManager const&)              = delete;
+    StreamManager(StreamManager&&)                   = delete;
     StreamManager& operator=(StreamManager const&)   = delete;
-    StreamManager& operator=(StreamManager&&)          = delete;
+    StreamManager& operator=(StreamManager&&)        = delete;
     void activateStream(bool ready)      { activeStream = ready; }
     void validStreamMethod(bool valid) { validStreamingMethod = valid; }
 protected:

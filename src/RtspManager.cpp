@@ -10,59 +10,18 @@
 #include "Common.hpp"
 #include "CamParmsEncription.hpp"
 
+
 using namespace Jetpack::Foundation;
 RtspManagerRef RtspManager::instance = nullptr;
 short RtspManager::messageCount = 0;
-
 
 RtspManager::RtspManager()
 {
     logdbg("***************************************");
     logdbg("Entering RtspManager constructor.......");
-    
-    // slow but better for code maintenane issues
-    data.main_loop = nullptr;
-    data.context = nullptr;
-    data.pipeline = nullptr;
-    data.rtpbin    = nullptr;
-    data.rtspsrc = nullptr;
-    data.rtph264depay = nullptr;
-    data.mpegtsmux = nullptr;
-    data.rtpmp2tpay = nullptr;
-    data.identity = nullptr;
-    data.udpsink = nullptr;
-    data.udpsrc = nullptr;
-    data.bus = nullptr;
-    data.msg = nullptr;
-    data.connection = nullptr;
-    data.url = nullptr;
-    data.writeSocket = nullptr;
-    data.readSocket = nullptr;
-    data.rtspWatch    = nullptr;
-    data.connectionUrl = nullptr;
-
-    // smaller struct do it the C++ 11 way
-    connection_info =
-    {
-        GST_RTSP_LOWER_TRANS_TCP,
-        GST_RTSP_FAM_INET,
-        nullptr,
-        nullptr,
-        nullptr,
-        88,
-        nullptr,
-        nullptr
-    };
-    logdbg("Before memset the data struture.......");
-    memset (&data, 0, sizeof (data));
-    logdbg("After init the data struture.......");
-
-    logdbg("Before init the shared pointers.......");
-    callbacksRef = std::make_shared<RtspManagerCallbacks>();
-    logdbg("After init the shared pointers.......");
- 
+     callbacksRef = std::make_shared<RtspManagerCallbacks>();
+    logdbg("Now init gstreamer for RtspManager.......");
     gst_init (0, nullptr);
- 
     logdbg("Leaving RtspManager constructor.......");
     logdbg("***************************************");
 }
@@ -71,11 +30,17 @@ RtspManagerRef RtspManager::createNewRtspManager()
 {
     logdbg("***************************************");
     logdbg("Entering createNewRtspManager.......");
-    instance = std::shared_ptr<RtspManager>(new RtspManager);
+    static dispatch_once_t onceToken;
+    dispatch_once(&onceToken, ^{
+        struct _RtspManager : RtspManager {
+            _RtspManager()
+            : RtspManager() {}
+        };
+        instance = std::make_shared<_RtspManager>();
+    });
     logdbg("Leaving createNewRtspManager.......");
     logdbg("***************************************");
     return instance;
-    //instanceList.push_back(managerRef);
 }
 
 ApiStatus RtspManager::connectToIPCam( CamParmsEncription& camAuth)
@@ -84,38 +49,15 @@ ApiStatus RtspManager::connectToIPCam( CamParmsEncription& camAuth)
     logdbg("Entering connectToIPCam.......");
     GstRTSPResult result;
     GstRTSPAuthMethod method = GST_RTSP_AUTH_DIGEST;
-    // decode parms
-    std::string encodedStr;
-    // decode it
-    encodedStr =  camAuth.getCameraGuid();
-    std::string cameraGuid = camAuth.base64_decode(encodedStr);
+    assignAuth(camAuth);
+    connection_info.user       = strdup(camAuth.base64_decode(crypto_userName).c_str());
+    connection_info.passwd     = strdup(camAuth.base64_decode(crypto_password).c_str());
+    connection_info.host       = strdup(camAuth.base64_decode(crypto_host).c_str());
+    connection_info.port       = atoi(camAuth.base64_decode(crypto_port).c_str());
+    connection_info.abspath    = strdup(camAuth.base64_decode(crypto_absPath).c_str());
+    connection_info.query      = strdup(camAuth.base64_decode(crypto_queryParms).c_str());
     
-    encodedStr = camAuth.getUserName();
-    std::string userName = camAuth.base64_decode(encodedStr);
-    
-    encodedStr = camAuth.getPassword();
-    std::string password = camAuth.base64_decode(encodedStr);
-    
-    encodedStr = camAuth.getHost();
-    std::string  host  = camAuth.base64_decode(encodedStr);
-    
-    encodedStr = camAuth.getPort();
-    std::string  port   = camAuth.base64_decode(encodedStr);
-    
-    encodedStr = camAuth.getAbsPath();
-    std::string  absPath = camAuth.base64_decode(encodedStr);
-    
-    encodedStr =  camAuth.getQueryParms();
-    std::string  queryParms = camAuth.base64_decode(encodedStr);
-
-    connection_info.user        = strdup(userName.c_str());
-    connection_info.passwd = strdup(password.c_str());
-    connection_info.host      = strdup(host.c_str());
-    connection_info.port       = atoi(port.c_str());
-    connection_info.abspath  = strdup(absPath.c_str());
-    connection_info.query     = strdup(queryParms.c_str());
-    
-    logdbg("Connection to IPCamera");
+    logdbg("Connection to IPCamera	");
     char debug_string[100];
     sprintf(debug_string, "Host is:   %s",   connection_info.host );
     logdbg(debug_string);
@@ -125,25 +67,28 @@ ApiStatus RtspManager::connectToIPCam( CamParmsEncription& camAuth)
     logdbg(debug_string);
     sprintf(debug_string, "User name:  %s", connection_info.user );
     logdbg(debug_string);
+    
     result = gst_rtsp_connection_create(&connection_info, &data.connection);
     if (result != GST_RTSP_OK)
     {
         return fatalApiState("RtspManager::gst_rtsp_connection_create failed!");
     }
     result = gst_rtsp_connection_set_auth(data.connection,
-                            method,  userName.c_str(),  password.c_str()  );
+                                                                   method,
+                                                                  strdup(connection_info.user),
+                                                                  strdup(connection_info.passwd)  );
     if (result != GST_RTSP_OK)
     {
         return errorApiState("RtspManager::gst_rtsp_connection_set_auth failed!");
     }
     GTimeVal time;
     time.tv_sec = 30;
-    time.tv_usec = 30000;
+    time.tv_usec = 3000000;
     
     result = gst_rtsp_connection_connect(data.connection, &time);
     if (result != GST_RTSP_OK)
-    {
-          return fatalApiState("RtspManager::gst_rtsp_connection_connect failed!");
+   {
+        return fatalApiState("RtspManager::gst_rtsp_connection_connect failed!");
     }
     logdbg("----------------------------------------------------------------");
     logdbg("Test TCP/IP connection to IP Camera successful!");
@@ -157,7 +102,7 @@ ApiStatus RtspManager::connectToIPCam( CamParmsEncription& camAuth)
      connection_url.append(connection_info.host);
      connection_url.append(":");
      char buffer[5];
-     sprintf(buffer, "%u", atoi(port.c_str()) );
+     sprintf(buffer, "%u", connection_info.port   );
      connection_url.append(buffer);
      connection_url.append(connection_info.abspath);
      connection_url.append(connection_info.query);
@@ -167,7 +112,7 @@ ApiStatus RtspManager::connectToIPCam( CamParmsEncription& camAuth)
      logdbg(data.url);
      logdbg("Connection url set!");
     
-     ApiState = testConnection();
+     //ApiState = testConnection();
  
     logdbg("Exiting connectToIPCam.......");
     logdbg("***************************************");

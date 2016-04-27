@@ -15,8 +15,6 @@ static const std::string base64_chars =
 
 
 CamParmsEncription::CamParmsEncription()
-:  encriptedData(nullptr),cameraGuid(nullptr), userName(nullptr),  password(nullptr),
-   host(nullptr),  port(nullptr),  abspath(nullptr), queryParms(nullptr)
 {
 }
 
@@ -24,11 +22,6 @@ ApiStatus CamParmsEncription::setCameraGuid(std::string guid)
 {
     if (guid == "" || guid.length() == 0)
        return ApiStatus::FAIL;
-    for (char& c : guid)
-    {
-        if (!is_base64(c))
-            return ApiStatus::FAIL;
-    }
     this->cameraGuid = guid;
     return ApiStatus::OK;
 }
@@ -37,11 +30,6 @@ ApiStatus CamParmsEncription::setUserName(std::string username)
 {
     if (username == "" || username.length() == 0)
         return ApiStatus::FAIL;
-    for (char& c : username)
-    {
-        if (!is_base64(c))
-            return ApiStatus::FAIL;
-    }
     this->userName = username;
     return ApiStatus::OK;
 }
@@ -50,11 +38,6 @@ ApiStatus CamParmsEncription::setPassword(std::string password)
 {
     if (password == "" || password.length() == 0)
         return ApiStatus::FAIL;
-    for (char& c : password)
-    {
-        if (!is_base64(c))
-            return ApiStatus::FAIL;
-    }
     this->password = password;
     return ApiStatus::OK;
 }
@@ -63,12 +46,7 @@ ApiStatus CamParmsEncription::setHost(std::string host)
 {
     if (host == "" || host.length() == 0)
         return ApiStatus::FAIL;
-    for (char& c : host)
-    {
-        if (!is_base64(c))
-            return ApiStatus::FAIL;
-    }
-    this->host = host;
+     this->host = host;
     return ApiStatus::OK;
 }
 
@@ -76,11 +54,6 @@ ApiStatus CamParmsEncription::setPort(std::string port)
 {
     if (port == "" || port.length() == 0)
         return ApiStatus::FAIL;
-    for (char& c : port)
-    {
-        if (!is_base64(c))
-            return ApiStatus::FAIL;
-    }
     this->port = port;
     return ApiStatus::OK;
 }
@@ -89,11 +62,6 @@ ApiStatus CamParmsEncription::setAbsPath(std::string path)
 {
     if (path == "" || path.length() == 0)
         return ApiStatus::FAIL;
-    for (char& c : path)
-    {
-        if (!is_base64(c))
-            return ApiStatus::FAIL;
-    }
     this->abspath = path;
     return ApiStatus::OK;
 }
@@ -102,11 +70,6 @@ ApiStatus CamParmsEncription::setQueryParms(std::string parms)
 {
     if (parms == "" || parms.length() == 0)
         return ApiStatus::FAIL;
-    for (char& c : parms)
-    {
-        if (!is_base64(c))
-            return ApiStatus::FAIL;
-    }
     this->queryParms = parms;
     return ApiStatus::OK;
 }
@@ -129,7 +92,7 @@ std::string  CamParmsEncription::getPassword()
 std::string  CamParmsEncription::getHost()
 {
     return host;
-}
+}			
 
 std::string   CamParmsEncription::getPort()
 {

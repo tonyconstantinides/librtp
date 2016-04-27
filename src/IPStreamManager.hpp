@@ -18,32 +18,81 @@ public:
     virtual ~IPStreamManager();
     IPStreamManager(IPStreamManager const&)                      = delete;    // Copy construct
     IPStreamManager(IPStreamManager&&)                             = delete;   // Move construct
-    IPStreamManager& operator=(IPStreamManager const&)        = delete;  // Copy assign
-    IPStreamManager& operator=(IPStreamManager&&)               = default;  // Move assign
+    IPStreamManager& operator=(IPStreamManager const&)             = delete;  // Copy assign
+    IPStreamManager& operator=(IPStreamManager&&)                    = default;  // Move assign
+    // needed by every derived class
     ApiStatus activateStream(bool ready)      { activeStream = ready; return ApiState; }
     ApiStatus validStreamMethod(bool valid) { validStreamingMethod = valid;  return ApiState;}
     std::string getName() { return name; }
     ApiStatus setName(std::string streamName) { name = streamName; return ApiState; }
+    ApiStatus  errorApiState( const gchar * msg);
+    ApiStatus  fatalApiState( const gchar* msg);
+    ApiStatus  assignAuth( CamParmsEncription& camAuth);
+    virtual ApiStatus   connectToIPCam(CamParmsEncription& camAuth) = 0;
+    virtual ApiStatus   testConnection() = 0;
+    // override in derived class
     virtual ApiStatus makeElements() = 0;
     virtual ApiStatus setupPipeLine() = 0;
     virtual ApiStatus startLoop() = 0;
-    ApiStatus  errorApiState( const gchar * msg);
-    // fatal error do not continue
-    ApiStatus  fatalApiState( const gchar* msg);
     // test the ip connection before we try to use it
-    virtual ApiStatus testConnection() = 0;
-protected:
     virtual ApiStatus   createElements() = 0;
     virtual ApiStatus   addElementsToBin() = 0;
     virtual ApiStatus   setElementsProperties() = 0;
     virtual ApiStatus   addCallbacks() = 0;
     virtual ApiStatus   removeCallbacks() = 0;
     virtual ApiStatus   cleanUp() = 0;
-    std::string name;
+    // unabmed properties used by derived classes like properties
+    
+protected:
+    std::string    name;
     bool           activeStream;
     bool           validStreamingMethod;
     std::string connection_url;
     ApiStatus   ApiState;
+    // sensitive data stored as properties
+    class {
+        std::string value;
+    public:
+        std::string & operator = (const std::string &i) { return value = i; }
+        operator std::string() const { return value; }
+    } crypto_cameraGuid;
+    class {
+        std::string value;
+    public:
+        std::string & operator = (const std::string &i) { return value = i; }
+        operator std::string() const { return value; }
+    } crypto_password;
+    class {
+        std::string value;
+    public:
+        std::string & operator = (const std::string &i) { return value = i; }
+        operator std::string() const { return value; }
+    } crypto_userName;
+    class {
+        std::string value;
+    public:
+        std::string & operator = (const std::string &i) { return value = i; }
+        operator std::string() const { return value; }
+    } crypto_host;
+    class {
+        std::string value;
+    public:
+        std::string & operator = (const std::string &i) { return value = i; }
+        operator std::string() const { return value; }
+    } crypto_port;
+    class {
+        std::string value;
+    public:
+        std::string & operator = (const std::string &i) { return value = i; }
+        operator std::string() const { return value; }
+    } crypto_absPath;
+    class {
+        std::string value;
+    public:
+        std::string & operator = (const std::string &i) { return value = i; }
+        operator std::string() const { return value; }
+    } crypto_queryParms;
+    
 };
 
 #endif /* IPStreamManager_hpp */
