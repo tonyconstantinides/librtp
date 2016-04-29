@@ -53,7 +53,7 @@ StreamManager::~StreamManager()
     logdbg("Exiting StreaManager destructor.......");
 }
 
-ApiStatus StreamManager::connectToStream(CamParmsEncription& camAuth, StreamType type)
+ApiStatus StreamManager::connectToStream(CamParmsEncription& camAuth,  CallBackFunc newCallBack, StreamType type)
 {
     logdbg("Entering StreamManager::connectToH264Stream.......");
     // used to id the stream based on cmaera guid
@@ -90,8 +90,8 @@ ApiStatus StreamManager::connectToStream(CamParmsEncription& camAuth, StreamType
         case StreamType::H264_AND_MJPEG:
             rtspManagerRef->validStreamMethod(true);
             rtspManagerRef->activateStream(true); // this is the prime stream
-         
             // old school programmiong with no exceptions, check every return
+            rtspManagerRef->addConnectionCallback(newCallBack);
             ApiState = rtspManagerRef->connectToIPCam(camAuth);
             if (ApiState != ApiStatus::OK)
             {
@@ -104,12 +104,6 @@ ApiStatus StreamManager::connectToStream(CamParmsEncription& camAuth, StreamType
                 rtspManagerRef->fatalApiState("Unable to RtspManager::makeElements()");
             }
             
-            ApiState = rtspManagerRef->setElementsProperties();
-            if (ApiState != ApiStatus::OK)
-            {
-                rtspManagerRef->fatalApiState("Unable to RtspManager::setElementProperties()");
-            }
-
             ApiState = rtspManagerRef->setupPipeLine();
             if (ApiState != ApiStatus::OK)
             {

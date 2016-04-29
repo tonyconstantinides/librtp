@@ -1,0 +1,442 @@
+{
+	"auto_complete":
+	{
+		"selected_items":
+		[
+			[
+				"NULL",
+				"nullptr"
+			],
+			[
+				"in",
+				"instance"
+			],
+			[
+				"n",
+				"nullptr"
+			],
+			[
+				"conn",
+				"connection_url"
+			],
+			[
+				"co",
+				"connectionCB"
+			],
+			[
+				"connect",
+				"connection"
+			],
+			[
+				"c",
+				"c_str"
+			],
+			[
+				"Rt",
+				"RtspConnectionCallBack"
+			],
+			[
+				"log",
+				"logdbg"
+			],
+			[
+				"fo",
+				"foundation"
+			],
+			[
+				"TEST",
+				"TESTS_OBJS"
+			]
+		]
+	},
+	"buffers":
+	[
+		{
+			"file": "/Users/tonyconstantinides/src/app/ui/presto/PREvaApplicationDelegate.cpp",
+			"settings":
+			{
+				"buffer_size": 24321,
+				"line_ending": "Unix"
+			}
+		},
+		{
+			"file": "/Users/tonyconstantinides/src/Go-MultipleFileUpload/app.go",
+			"settings":
+			{
+				"buffer_size": 1916,
+				"line_ending": "Unix"
+			}
+		},
+		{
+			"file": "libevartp.sublime-project",
+			"settings":
+			{
+				"buffer_size": 95,
+				"line_ending": "Unix"
+			}
+		}
+	],
+	"build_system": "",
+	"build_system_choices":
+	[
+	],
+	"build_varint": "",
+	"command_palette":
+	{
+		"height": 0.0,
+		"last_filter": "",
+		"selected_items":
+		[
+		],
+		"width": 0.0
+	},
+	"console":
+	{
+		"height": 0.0,
+		"history":
+		[
+		]
+	},
+	"distraction_free":
+	{
+		"menu_visible": true,
+		"show_minimap": false,
+		"show_open_files": false,
+		"show_tabs": false,
+		"side_bar_visible": false,
+		"status_bar_visible": false
+	},
+	"file_history":
+	[
+		"/Users/tonyconstantinides/src/libevartp/src/Common.hpp",
+		"/Users/tonyconstantinides/src/libevartp/src/Rtspmanager.cpp",
+		"/Users/tonyconstantinides/src/libevartp/src/StreamManager.hpp",
+		"/Users/tonyconstantinides/src/libevartp/src/CmakeLists.txt",
+		"/Users/tonyconstantinides/src/app/ui/presto/CMakeLists.txt",
+		"/Users/tonyconstantinides/src/ipcams/src/utils/Base64.hpp",
+		"/Users/tonyconstantinides/src/ipcams/src/utils/Base64.cpp",
+		"/Users/tonyconstantinides/ui/presto/PREvaApplicationDelegate.cpp",
+		"/usr/local/eva/sdks/arm-linux/arm-linux-gnueabihf/sysroot/usr/include/evartp/RtspManager.hpp",
+		"/Users/tonyconstantinides/src/app/ui/presto/PREvaApplicationDelegate.cpp",
+		"/Users/tonyconstantinides/.bash_profile",
+		"/Users/tonyconstantinides/src/libevartp/src/RtspManager.hpp",
+		"/Users/tonyconstantinides/src/libevartp/src/RtspManager.cpp",
+		"/Users/tonyconstantinides/src/libevartp/ts.sh",
+		"/Users/tonyconstantinides/Downloads/Terminal Saved Output.txt",
+		"/Users/tonyconstantinides/src/app/middleware/src/video/FSVideoPathManager.cpp",
+		"/Users/tonyconstantinides/src/app/middleware/src/video/FSVideoPathManagerBroadcom.cpp",
+		"/Users/tonyconstantinides/src/app/middleware/src/video/FSVideoPathManagerBroadcom.h",
+		"/usr/local/eva/sdks/darwin/include/jetpack/foundation/data.hpp",
+		"/Users/tonyconstantinides/src/jetpack/foundation/foundation/run_loop_darwin.cpp",
+		"/usr/local/eva/sdks/darwin/bin/generate-xpc-bindings",
+		"/Users/tonyconstantinides/src/app/middleware/CmakeLists.txt",
+		"/Users/tonyconstantinides/src/jetpack/multipeer/example/server.hpp",
+		"/Users/tonyconstantinides/src/jetpack/foundation/foundation/logger.cpp",
+		"/Users/tonyconstantinides/src/jetpack/foundation/foundation/thread.cpp",
+		"/Users/tonyconstantinides/src/jetpack/foundation/foundation/xpc_connection.hpp",
+		"/Users/tonyconstantinides/src/jetpack/foundation/foundation/process_info.hpp",
+		"/Users/tonyconstantinides/src/jetpack/foundation/foundation/logger.hpp",
+		"/Users/tonyconstantinides/src/jetpack/multipeer/example/server.cpp",
+		"/Users/tonyconstantinides/src/app/middleware/src/player/FSPlayerFile.cpp",
+		"/Users/tonyconstantinides/src/app/middleware/src/player/FSPlayerLocal.cpp",
+		"/Users/tonyconstantinides/src/app/middleware/src/network/FSNetworkInfoManagerMac.cpp",
+		"/Users/tonyconstantinides/src/app/middleware/src/FSFileSystem.cpp",
+		"/Users/tonyconstantinides/src/libevartp/src/runnable/main.cpp",
+		"/Users/tonyconstantinides/src/app/middleware/src/FSCoreService.cpp",
+		"/Users/tonyconstantinides/src/libevartp/src/CMakeLists.txt",
+		"/Users/tonyconstantinides/src/gst-plugins-good/gst/rtsp/gstrtpdec.h",
+		"/Users/tonyconstantinides/src/gst-plugins-good/gst/rtsp/gstrtsp.c",
+		"/Users/tonyconstantinides/cerbero/sources/darwin_x86_64/gst-plugins-good-1.0-1.7/gst/rtsp/gstrtspsrc.c",
+		"/Users/tonyconstantinides/src/gst-rtsp-server-1.7.90/gst/rtsp-sink/gstrtspclientsink.c",
+		"/Users/tonyconstantinides/src/gst-rtsp-0.10.8/examples/test-uri.c",
+		"/Users/tonyconstantinides/src/gst-rtsp-0.10.8/gst-rtsp.spec",
+		"/Users/tonyconstantinides/src/cerbero/config/cross-lin-arm.cbc",
+		"/Users/tonyconstantinides/src/cerbero/config/darwin.config",
+		"/Users/tonyconstantinides/src/cerbero/config/cross-win32.cbc",
+		"/Users/tonyconstantinides/src/cerbero/config/linux.config",
+		"/Users/tonyconstantinides/src/cerbero/config/cross-lin-x86.cbc",
+		"/Users/tonyconstantinides/src/cerbero/config/cross-ios-universal.cbc",
+		"/Users/tonyconstantinides/src/cerbero/config/android.config",
+		"/Users/tonyconstantinides/src/cerbero/config/cross-android-armv7.cbc",
+		"/Users/tonyconstantinides/src/cerbero/config/cross-ios-arm64.cbc",
+		"/Applications/Android Studio.app/Contents/bin/idea.properties",
+		"/Users/tonyconstantinides/Downloads/gst-rtsp-0.10.8/gst-rtsp.spec",
+		"/Users/tonyconstantinides/src/cerbero/setup.py",
+		"/Users/tonyconstantinides/src/cerbero/tools/bootstrap-redhat.sh",
+		"/Users/tonyconstantinides/src/cerbero/tools/build-toolchains.sh",
+		"/Users/tonyconstantinides/src/cerbero/tools/chroot.sh",
+		"/Users/tonyconstantinides/src/common.inc",
+		"/Users/tonyconstantinides/src/cerbero/tools/bootstrap-debian.sh",
+		"/Users/tonyconstantinides/src/cerbero/packages/gstreamer-1.0-capture.package",
+		"/Users/tonyconstantinides/src/cerbero/Makefile",
+		"/Users/tonyconstantinides/src/cerbero/data/autotools/config.sub",
+		"/Users/tonyconstantinides/cerbero/dist/darwin_x86_64/lib/cmake/libxml2/libxml2-config.cmake",
+		"/Users/tonyconstantinides/src/gstreamer/README.static-linking",
+		"/Users/tonyconstantinides/Downloads/gst-rtsp-0.10.8/gst/rtsp-server/rtsp-client.h",
+		"/Users/tonyconstantinides/Downloads/gst-rtsp-0.10.8/examples/test-mp4.c",
+		"/Users/tonyconstantinides/src/live/config.macosx",
+		"/Users/tonyconstantinides/src/ipcams/src/live/BasicUsageEnvironment/Makefile",
+		"/Users/tonyconstantinides/live/BasicUsageEnvironment/Makefile.tail",
+		"/Users/tonyconstantinides/live/BasicUsageEnvironment/Makefile.head",
+		"/Users/tonyconstantinides/src/ipcams/src/live/liveMedia/Makefile",
+		"/Users/tonyconstantinides/src/ipcams/src/live/UsageEnvironment/Makefile",
+		"/Users/tonyconstantinides/src/ipcams/src/live/groupsock/Makefile",
+		"/Users/tonyconstantinides/live/testProgs/testMPEG1or2ProgramToTransportStream.cpp",
+		"/Users/tonyconstantinides/live/testProgs/testH264VideoStreamer.cpp",
+		"/Users/tonyconstantinides/src/ipcams/src/live/liveMedia/include/liveMedia_version.hh",
+		"/Users/tonyconstantinides/src/ipcams/src/live/liveMedia/H264or5VideoRTPSink.cpp",
+		"/Users/tonyconstantinides/src/ipcams/toolchains/darwin.cmake",
+		"/Users/tonyconstantinides/src/ipcams/src/CMakeLists.txt",
+		"/Users/tonyconstantinides/src/ipcams/src/CMake.txt",
+		"/Users/tonyconstantinides/src/jetpack/toolchains/arm-linux.cmake",
+		"/Users/tonyconstantinides/src/jetpack/toolchains/all.cmake",
+		"/Users/tonyconstantinides/src/jetpack/toolchains/darwin.cmake",
+		"/Users/tonyconstantinides/src/ipcams/CMakeLists.txt",
+		"/Users/tonyconstantinides/src/ipcams/MakeFile",
+		"/Users/tonyconstantinides/src/ipcams/Makefile",
+		"/Users/tonyconstantinides/src/app/CMakeLists.txt",
+		"/Users/tonyconstantinides/src/app/toolchains/all.cmake",
+		"/Users/tonyconstantinides/src/app-tetris/README.md",
+		"/Users/tonyconstantinides/src/ipcams/src/live/liveMedia/makefile",
+		"/Users/tonyconstantinides/src/live/groupsock/Groupsock.cpp",
+		"/Users/tonyconstantinides/src/ipcams/common.inc",
+		"/Users/tonyconstantinides/src/ipcams/targets.inc",
+		"/Users/tonyconstantinides/src/json11/Makefile",
+		"/Users/tonyconstantinides/src/jetpack/Makefile",
+		"/Users/tonyconstantinides/src/ipcams/makefile",
+		"/Users/tonyconstantinides/src/json11/CMakeLists.txt",
+		"/Users/tonyconstantinides/src/ipcams/src/live/groupsock/NetInterface.cpp",
+		"/Users/tonyconstantinides/src/live/testProgs/playCommon.hh",
+		"/Users/tonyconstantinides/src/ipcams/src/live/groupsock/Makefile.tail",
+		"/Users/tonyconstantinides/src/live/testProgs/testRTSPClient.cpp",
+		"/Users/tonyconstantinides/src/live/liveMedia/include/liveMedia.hh",
+		"/Users/tonyconstantinides/src/live/testProgs/registerRTSPStream.cpp",
+		"/Users/tonyconstantinides/src/live/testProgs/openRTSP.cpp",
+		"/Users/tonyconstantinides/src/live/liveMedia/RTSPClient.cpp"
+	],
+	"find":
+	{
+		"height": 31.0
+	},
+	"find_in_files":
+	{
+		"height": 0.0,
+		"where_history":
+		[
+		]
+	},
+	"find_state":
+	{
+		"case_sensitive": false,
+		"find_history":
+		[
+			"rtpbin_pad_added_cb",
+			"g_signal_connect",
+			"kUnassignedWindowIndex",
+			"RtspManager",
+			"_eventQueue",
+			"LIBFOUNDATION",
+			"MPEG1or2Demux"
+		],
+		"highlight": true,
+		"in_selection": false,
+		"preserve_case": false,
+		"regex": false,
+		"replace_history":
+		[
+		],
+		"reverse": false,
+		"show_context": true,
+		"use_buffer2": true,
+		"whole_word": false,
+		"wrap": true
+	},
+	"groups":
+	[
+		{
+			"selected": 2,
+			"sheets":
+			[
+				{
+					"buffer": 0,
+					"file": "/Users/tonyconstantinides/src/app/ui/presto/PREvaApplicationDelegate.cpp",
+					"semi_transient": false,
+					"settings":
+					{
+						"buffer_size": 24321,
+						"regions":
+						{
+						},
+						"selection":
+						[
+							[
+								13607,
+								13607
+							]
+						],
+						"settings":
+						{
+							"syntax": "Packages/C++/C++.sublime-syntax"
+						},
+						"translation.x": 0.0,
+						"translation.y": 3174.0,
+						"zoom_level": 1.0
+					},
+					"stack_index": 2,
+					"type": "text"
+				},
+				{
+					"buffer": 1,
+					"file": "/Users/tonyconstantinides/src/Go-MultipleFileUpload/app.go",
+					"semi_transient": false,
+					"settings":
+					{
+						"buffer_size": 1916,
+						"regions":
+						{
+						},
+						"selection":
+						[
+							[
+								1279,
+								1279
+							]
+						],
+						"settings":
+						{
+							"syntax": "Packages/Go/Go.sublime-syntax",
+							"translate_tabs_to_spaces": false
+						},
+						"translation.x": 0.0,
+						"translation.y": 1003.0,
+						"zoom_level": 1.0
+					},
+					"stack_index": 1,
+					"type": "text"
+				},
+				{
+					"buffer": 2,
+					"file": "libevartp.sublime-project",
+					"semi_transient": false,
+					"settings":
+					{
+						"buffer_size": 95,
+						"regions":
+						{
+						},
+						"selection":
+						[
+							[
+								23,
+								23
+							]
+						],
+						"settings":
+						{
+							"syntax": "Packages/JavaScript/JSON.sublime-syntax"
+						},
+						"translation.x": 0.0,
+						"translation.y": 0.0,
+						"zoom_level": 1.0
+					},
+					"stack_index": 0,
+					"type": "text"
+				}
+			]
+		}
+	],
+	"incremental_find":
+	{
+		"height": 31.0
+	},
+	"input":
+	{
+		"height": 0.0
+	},
+	"layout":
+	{
+		"cells":
+		[
+			[
+				0,
+				0,
+				1,
+				1
+			]
+		],
+		"cols":
+		[
+			0.0,
+			1.0
+		],
+		"rows":
+		[
+			0.0,
+			1.0
+		]
+	},
+	"menu_visible": true,
+	"output.find_results":
+	{
+		"height": 0.0
+	},
+	"pinned_build_system": "",
+	"project": "libevartp.sublime-project",
+	"replace":
+	{
+		"height": 58.0
+	},
+	"save_all_on_build": true,
+	"select_file":
+	{
+		"height": 0.0,
+		"last_filter": "",
+		"selected_items":
+		[
+			[
+				"",
+				"~/src/app/middleware/src/video/FSVideoPathManagerBroadcom.cpp"
+			],
+			[
+				"videopathmanager",
+				"~/src/app/middleware/src/video/FSVideoPathManagerBroadcom.cpp"
+			]
+		],
+		"width": 0.0
+	},
+	"select_project":
+	{
+		"height": 500.0,
+		"last_filter": "",
+		"selected_items":
+		[
+			[
+				"",
+				"~/src/libevartp/src/libevartp.sublime-project"
+			]
+		],
+		"width": 380.0
+	},
+	"select_symbol":
+	{
+		"height": 0.0,
+		"last_filter": "",
+		"selected_items":
+		[
+		],
+		"width": 0.0
+	},
+	"selected_group": 0,
+	"settings":
+	{
+	},
+	"show_minimap": true,
+	"show_open_files": false,
+	"show_tabs": true,
+	"side_bar_visible": true,
+	"side_bar_width": 365.0,
+	"status_bar_visible": true,
+	"template_settings":
+	{
+	}
+}

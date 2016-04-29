@@ -11,21 +11,20 @@
 
 typedef std::pair<RtspManagerRef, MjpegManagerRef> VideoStreamPair;
 typedef std::vector<VideoStreamPair>   VideoDataList;
+typedef std::function<void(char*)> CallBackFunc;
 
 class StreamManager
 {
 public:
     static StreamManagerRef createStreamManager();
     virtual ~StreamManager();
-    // all auth stuff is encripted Base64, no cionnect info is sent in the clear
-    ApiStatus connectToStream(CamParmsEncription& camAuth, StreamType type);
-    ApiStatus disconnectStreams(std::string streamID);
     StreamManager(StreamManager const&)              = delete;
     StreamManager(StreamManager&&)                   = delete;
     StreamManager& operator=(StreamManager const&)   = delete;
     StreamManager& operator=(StreamManager&&)        = delete;
-    void activateStream(bool ready)      { activeStream = ready; }
-    void validStreamMethod(bool valid) { validStreamingMethod = valid; }
+    // all auth stuff is encripted Base64, no cionnect info is sent in the clear
+    ApiStatus connectToStream(CamParmsEncription& camAuth,   CallBackFunc  newCallBack, StreamType type);
+    ApiStatus disconnectStreams(std::string streamID);
 protected:
     StreamManager();    
     static StreamManagerRef instance;

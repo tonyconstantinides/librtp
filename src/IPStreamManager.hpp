@@ -27,7 +27,9 @@ public:
     ApiStatus setName(std::string streamName) { name = streamName; return ApiState; }
     ApiStatus  errorApiState( const gchar * msg);
     ApiStatus  fatalApiState( const gchar* msg);
-    ApiStatus  assignAuth( CamParmsEncription& camAuth);
+    ApiStatus   assignAuth( CamParmsEncription& camAuth);
+
+    
     virtual ApiStatus   connectToIPCam(CamParmsEncription& camAuth) = 0;
     virtual ApiStatus   testConnection() = 0;
     // override in derived class

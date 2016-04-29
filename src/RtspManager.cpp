@@ -109,10 +109,10 @@ ApiStatus RtspManager::connectToIPCam( CamParmsEncription& camAuth)
      logdbg("Setting the connection url");
      data.connectionUrl = new gchar(connection_url.length() + 1);
      std::strcpy(data.connectionUrl, connection_url.c_str());
-     logdbg(data.url);
+     logdbg(data.connectionUrl);
      logdbg("Connection url set!");
     
-     //ApiState = testConnection();
+     ApiState = testConnection();
  
     logdbg("Exiting connectToIPCam.......");
     logdbg("***************************************");
@@ -255,8 +255,8 @@ ApiStatus RtspManager::cleanUp()
 ApiStatus RtspManager::createElements()
 {
     data.pipeline     = gst_pipeline_new("pipeline");
-    data.rtpbin        = gst_element_factory_make("rtp				bin", "rtpbin");
-    data.rtspsrc      = gst_element_factory_make ("rtspsrc", "source");
+    data.rtpbin        = gst_element_factory_make("rtpbin", "rtpbin");
+    data.rtspsrc      = gst_element_factory_make ("rtspsrc", "rtspsrc");
     data.rtph264depay = gst_element_factory_make("rtph264depay", "rtph264depay");
     data.mpegtsmux    = gst_element_factory_make("mpegtsmux", "mpegtsmux");
     data.rtpmp2tpay   = gst_element_factory_make ("rtpmp2tpay", "rtpmp2tpay");
@@ -299,8 +299,11 @@ ApiStatus  RtspManager::setElementsProperties()
                  "name",         "rtpbin",
                  NULL);
     // setting properties on rtspsrc
+    logdbg("Setting url connection:");
+    logdbg(  connection_url.c_str() );
+    
     g_object_set( G_OBJECT (data.rtspsrc),
-                 "location",         connection_url.c_str(),
+                 "location",            connection_url.c_str(),
                  "ntp-sync",            FALSE,
                  "async-handling",    FALSE,
                  "do-retransmission", FALSE,
@@ -612,20 +615,8 @@ void RtspManagerCallbacks::processMsgType(GstBus *bus, GstMessage* msg, CustomDa
         }
         case GST_MESSAGE_ERROR: {
             printMsg(msg, " GST_MESSAGE_ERROR");
-
-            gchar  *debug;
-            GError *error;
-            
-            gst_message_parse_error (msg, &error, &debug);
-            g_free (debug);
-            
-            logerr() <<  "Error: " << error->message;
-            g_error_free (error);
-            if (pdata)
-            {    
-                g_main_loop_quit(pdata->main_loop);
-            }
-            break;
+            processErrorState(msg);
+             break;
         }
         case GST_MESSAGE_STATE_CHANGED: {
             printMsg(msg, " GST_MESSAGE_STATE_CHANGED");
@@ -675,16 +666,6 @@ void RtspManagerCallbacks::processMsgType(GstBus *bus, GstMessage* msg, CustomDa
             } else {
                 logdbg("No access to the data structure cannot call the connected() callback!");
             }
-            /*
-            logdbg("Ending Camera Loop.....");
-            if (pdata && pdata->main_loop)
-            {    
-                g_main_loop_quit( pdata->main_loop ); 
-            } else {
-                logdbg("No access to the data structure cannot break out of Camera loop!");
-            }          
-            logdbg("Camera Loop finshed. .....");
-            */
             break;
         case GST_MESSAGE_ASYNC_DONE:
             printMsg(msg, "GST_MESSAGE_ASYNC_DONE");
@@ -707,7 +688,6 @@ gboolean RtspManagerCallbacks::bus_call (GstBus *bus, GstMessage *msg, gpointer 
     logdbg("***************************************");
     return TRUE;
 }
-
 
 
 

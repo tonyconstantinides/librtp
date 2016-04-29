@@ -86,7 +86,7 @@ protected:
     };
 };
 
-class RtspManagerCallbacks
+class RtspManagerCallbacks : public StreamCallbacksBase
 {
 public:
     RtspManagerCallbacks()          = default;
