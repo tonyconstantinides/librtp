@@ -9,6 +9,7 @@ list(
     MjpegManager.cpp
     StreamManager.cpp
 	CamParmsEncription.cpp
+    StreamErrorHandler.cpp
 )
 
 list(
@@ -18,6 +19,7 @@ list(
     MjpegManager.hpp
     StreamManager.hpp	
     CamParmsEncription.hpp
+    StreamErrorHandler.hpp
     Common.hpp
 )
 

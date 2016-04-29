@@ -11,7 +11,7 @@
 
 typedef std::pair<RtspManagerRef, MjpegManagerRef> VideoStreamPair;
 typedef std::vector<VideoStreamPair>   VideoDataList;
-typedef std::function<void(char*)> CallBackFunc;
+
 
 class StreamManager
 {
@@ -23,7 +23,10 @@ public:
     StreamManager& operator=(StreamManager const&)   = delete;
     StreamManager& operator=(StreamManager&&)        = delete;
     // all auth stuff is encripted Base64, no cionnect info is sent in the clear
-    ApiStatus connectToStream(CamParmsEncription& camAuth,   CallBackFunc  newCallBack, StreamType type);
+    ApiStatus connectToStream(CamParmsEncription& camAuth, 
+                              CallBackFunc  streamStarted,
+                              CallBackFunc  streamError,
+                              StreamType type);
     ApiStatus disconnectStreams(std::string streamID);
 protected:
     StreamManager();    

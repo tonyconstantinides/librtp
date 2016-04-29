@@ -46,11 +46,12 @@ public:
     // unabmed properties used by derived classes like properties
     
 protected:
-    std::string    name;
-    bool           activeStream;
-    bool           validStreamingMethod;
-    std::string connection_url;
-    ApiStatus   ApiState;
+    std::string  name;
+    bool         activeStream;
+    bool         validStreamingMethod;
+    std::string  connection_url;
+    ApiStatus    ApiState;
+ 
     // sensitive data stored as properties
     class {
         std::string value;

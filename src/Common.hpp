@@ -33,15 +33,15 @@
 class StreamManager;
 class RtspManager;
 class MjpegManager;
-class RtspManagerCallbacks;
 class CamParmsEncription;
 
 enum   class ApiStatus {OK, CLEAR, FAIL, FATAL_ERROR };
 enum   class StreamType {MJPEG_ONLY, H264_ONLY, H264_AND_MJPEG};
 typedef std::shared_ptr<StreamManager> StreamManagerRef;
 typedef std::shared_ptr<RtspManager> RtspManagerRef;
-typedef std::shared_ptr<RtspManagerCallbacks> CallbacksRef;
 typedef std::shared_ptr<MjpegManager>  MjpegManagerRef;
+typedef std::function<void(char*)> CallBackFunc;
+
 typedef unsigned char             BYTE;
 typedef std::map<std::string, std::string>  MapKeyValues;
 extern ApiStatus ApiState;

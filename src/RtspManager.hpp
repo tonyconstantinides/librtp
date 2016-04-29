@@ -14,6 +14,8 @@
 #include "Common.hpp"
 #include "IPStreamManager.hpp"
 #include "CamParmsEncription.hpp"
+#include "StreamErrorHandler.hpp"
+#include <string>
 
 // Structure to contain all our information, so we can pass it around
 // must raw pointers as the underlying API is C-based
@@ -37,7 +39,8 @@ typedef struct _Data{
     GSocket*           readSocket       = nullptr;
     GstRTSPWatch*      rtspWatch        = nullptr;
     gchar*             connectionUrl    = nullptr;
-    std::function<void(char*)> connectionCB;
+    CallBackFunc       streamConnectionCB;
+    CallBackFunc       streamErrorCB;  
 }CustomData;		
 
 typedef std::shared_ptr<CustomData> CustomDataRef;
@@ -55,8 +58,8 @@ public:
     RtspManager& operator=(RtspManager&&)       = default;  // Move assign
     static  short messageCount;
     // the structure containes base64 encoded parms
-    void addConnectionCallback(std::function<void(char*)>  newCallBack) { data.connectionCB = newCallBack; }
-
+    void addConnectionCallback(CallBackFunc   connectedCallBack) { data.streamConnectionCB = connectedCallBack; }
+    void addErrorCallback(CallBackFunc streamErrorCallback)  {     data.streamErrorCB = streamErrorCallback; }
     virtual ApiStatus connectToIPCam(CamParmsEncription& camAuth) override;
     virtual ApiStatus  testConnection()  override;
     virtual ApiStatus makeElements() 	 override;
@@ -69,10 +72,21 @@ public:
     virtual ApiStatus  addCallbacks()          override;
     virtual ApiStatus  removeCallbacks()       override;
     virtual ApiStatus   cleanUp()              override;
+// need to be static for gstreamer
+    // utility funcs
+    static void printMsg(GstMessage* msg, const gchar*  msgType);
+    static void processMsgType(GstBus *bus, GstMessage* msg, CustomData* data);
+    static gboolean bus_call (GstBus *bus, GstMessage *msg, gpointer data);
+    static void on_pad_added_cb (GstElement *element, GstPad *pad, CustomData  *data);
+    static void rtpbin_pad_added_cb(GstElement *rtpbin, GstPad  *pad, CustomData *data);
+    static void rtspsrc_pad_added_cb (GstElement *rtspsrc, GstPad  *pad, CustomData *data);
+    static void rtspsrc_pad_removed_cb (GstElement *rtspsrc, GstPad  *pad, CustomData *data);
+    static void rtspsrc_no_more_pads_cb(GstElement *rtspsrc, gpointer data);
+
 protected:
     RtspManager();
     static RtspManagerRef instance;
-    CallbacksRef callbacksRef;
+    static StreamErrorHandler errorHandler;
     CustomData data;
     GstRTSPUrl connection_info = {
         GST_RTSP_LOWER_TRANS_TCP,
@@ -86,26 +100,6 @@ protected:
     };
 };
 
-class RtspManagerCallbacks : public StreamCallbacksBase
-{
-public:
-    RtspManagerCallbacks()          = default;
-    virtual ~RtspManagerCallbacks() = default;
-    RtspManagerCallbacks(RtspManagerCallbacks const&)             = delete;    // Copy construct
-    RtspManagerCallbacks(RtspManagerCallbacks&&)                  = delete;   // Move construct
-    RtspManagerCallbacks& operator=(RtspManagerCallbacks const&)  = delete;  // Copy assign
-    RtspManagerCallbacks& operator=(RtspManagerCallbacks&&)       = default;  // Move assign
-
-    // utility funcs
-    static void printMsg(GstMessage* msg, const gchar*  msgType);
-    static void processMsgType(GstBus *bus, GstMessage* msg, CustomData* data);
-    static gboolean bus_call (GstBus *bus, GstMessage *msg, gpointer data);
-    static void on_pad_added_cb (GstElement *element, GstPad *pad, CustomData  *data);
-    static void rtpbin_pad_added_cb(GstElement *rtpbin, GstPad  *pad, CustomData *data);
-    static void rtspsrc_pad_added_cb (GstElement *rtspsrc, GstPad  *pad, CustomData *data);
-    static void rtspsrc_pad_removed_cb (GstElement *rtspsrc, GstPad  *pad, CustomData *data);
-    static void rtspsrc_no_more_pads_cb(GstElement *rtspsrc, gpointer data);
-};
 
 
 #endif /* RtspManager_hpp */

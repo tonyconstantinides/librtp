@@ -53,7 +53,10 @@ StreamManager::~StreamManager()
     logdbg("Exiting StreaManager destructor.......");
 }
 
-ApiStatus StreamManager::connectToStream(CamParmsEncription& camAuth,  CallBackFunc newCallBack, StreamType type)
+ApiStatus StreamManager::connectToStream(CamParmsEncription& camAuth, 
+                                         CallBackFunc streamStarted,
+                                         CallBackFunc streamError,
+                                         StreamType type)
 {
     logdbg("Entering StreamManager::connectToH264Stream.......");
     // used to id the stream based on cmaera guid
@@ -91,7 +94,8 @@ ApiStatus StreamManager::connectToStream(CamParmsEncription& camAuth,  CallBackF
             rtspManagerRef->validStreamMethod(true);
             rtspManagerRef->activateStream(true); // this is the prime stream
             // old school programmiong with no exceptions, check every return
-            rtspManagerRef->addConnectionCallback(newCallBack);
+            rtspManagerRef->addConnectionCallback(streamStarted);
+            rtspManagerRef->addErrorCallback(streamError);
             ApiState = rtspManagerRef->connectToIPCam(camAuth);
             if (ApiState != ApiStatus::OK)
             {
