@@ -18,7 +18,7 @@
 class CamParmsEncription
 {
 public:
-    CamParmsEncription();
+    CamParmsEncription() = default;
     virtual ~CamParmsEncription() = default;
     
     std::string base64_encode(BYTE const* buf, unsigned int bufLen);

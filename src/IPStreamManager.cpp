@@ -9,6 +9,8 @@
 #include "IPStreamManager.hpp"
 #include "CamParmsEncription.hpp"
 
+short IPStreamManager::messageCount = 0;
+
 IPStreamManager::IPStreamManager()
 : name(""),
 activeStream(false),
@@ -16,12 +18,6 @@ validStreamingMethod(false),
 connection_url(""),
 ApiState(ApiStatus::OK)
 {
-    
-}
-
-IPStreamManager::~IPStreamManager()
-{
-    
 }
 
 ApiStatus  IPStreamManager::assignAuth( CamParmsEncription& camAuth)
@@ -51,4 +47,23 @@ ApiStatus IPStreamManager::fatalApiState(const gchar * msg)
     return  ApiState;
 }
 
-
+void IPStreamManager::printMsg(GstMessage* msg, const gchar*  msgType)
+{
+    if (msg == NULL)
+    {
+        logerr() << "GstMessage to printMsg cannot be null";
+    }
+    else {
+        const gchar* msgTypeName   = GST_MESSAGE_TYPE_NAME(msg);
+        GstClockTime timeStamp          = GST_MESSAGE_TIMESTAMP(msg);
+        const gchar* srcObj                 = GST_MESSAGE_SRC_NAME(msg);
+        guint seqnum                          = GST_MESSAGE_SEQNUM(msg);
+        logdbg ("--------------------------------------------------------------------------\n");
+        logdbg("Mesage SeqNum     : " << std::to_string(seqnum));
+        logdbg("Message type      : " << msgType);
+        logdbg("Messge type  Name : " << msgTypeName);
+        logdbg("Time Stamp when mesage created  : " << std::to_string(timeStamp));
+        logdbg("Src Object Name   : " << srcObj);
+        logdbg ("---------------------------------------------------------------------------\n");
+    }
+ }

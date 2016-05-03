@@ -14,10 +14,6 @@ static const std::string base64_chars =
 "0123456789+/";
 
 
-CamParmsEncription::CamParmsEncription()
-{
-}
-
 ApiStatus CamParmsEncription::setCameraGuid(std::string guid)
 {
     if (guid == "" || guid.length() == 0)

@@ -10,20 +10,23 @@
 #define MjpegManager_hpp
 #include "Common.hpp"
 #include "IPStreamManager.hpp"
+#include "CamParmsEncription.hpp"
 
 typedef struct _MjpegData{
-    GMainLoop *           main_loop = nullptr;
+    GMainLoop*              main_loop = nullptr;
     GstContext*           context = nullptr ;
-    GstElement*           pipeline  = nullptr;
-    GstElement*           souphttpsrc = nullptr;
-    GstElement*           tcpserver = nullptr;
-    GstElement*           multipartdemux = nullptr;
-    GstElement*           jpegdec = nullptr;
-    GstElement*           ffenc_mpeg4 = nullptr;
-    GstBus*               bus = nullptr;
-    GstMessage *          msg = nullptr;
-    gchar*                connectionUr = nullptr;
-    std::function<void(char*)> connectionCB;
+    GstElement*             pipeline  = nullptr;
+    GstElement*             souphttpsrc = nullptr;
+    GstElement*             tcpserver = nullptr;
+    GstElement*             multipartdemux = nullptr;
+    GstElement*             jpegdec = nullptr;
+    GstElement*             ffenc_mpeg4 = nullptr;
+    GstBus*                    bus = nullptr;
+    GstMessage*             msg = nullptr;
+    gchar*                     connectionUr = nullptr;
+    CallBackFunc           streamConnectionCB;
+    CallBackFunc           streamErrorCB;
+    StreamErrorHandler errorHandler;
 }MjpegData;
 
 typedef std::shared_ptr<MjpegData> MjpegDataRef;
@@ -45,13 +48,18 @@ public:
 protected:
     MjpegManager();
     static   MjpegManagerRef instance;
-    MjpegData   data;
+    MjpegData  data;
     virtual ApiStatus  createElements() override;
     virtual ApiStatus  addElementsToBin() override;
     virtual ApiStatus  setElementsProperties() override;
     virtual ApiStatus  addCallbacks() override;
     virtual ApiStatus  removeCallbacks() override;
     virtual ApiStatus  cleanUp() override;
+    static gboolean bus_call (GstBus *bus, GstMessage *msg, gpointer data);
+    static void processMsgType(GstBus *bus, GstMessage* msg, MjpegData* pdata);
+    static void souphttpsrc_pad_added_cb (GstElement*       souphttsrc, GstPad* pad, MjpegData* data);
+    static void souphttpsrc_pad_removed_cb (GstElement*   souphttpsrc, GstPad* pad, MjpegData *data);
+    static void souphttpsrc_no_more_pads_cb(GstElement*  souphttpsrc, gpointer data);
 };
 
 #endif /* MjpegManager_hpp */

@@ -6,8 +6,9 @@
 //  Copyright © 2016 EVA Automation, Inc. All rights reserved.
 //
 
-#include "Common.hpp"
+
 #include "StreamErrorHandler.hpp"
+#include "Common.hpp"
 
 ApiStatus StreamErrorHandler::processErrorState(GstMessage* msg )
 {

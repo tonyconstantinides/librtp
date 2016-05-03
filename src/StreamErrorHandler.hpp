@@ -20,8 +20,7 @@ public:
     StreamErrorHandler(StreamErrorHandler&&)                  = delete;   // Move construct
     StreamErrorHandler& operator=(StreamErrorHandler const&)  = delete;  // Copy assign
     StreamErrorHandler& operator=(StreamErrorHandler&&)       = default;  // Move assign
-    static ApiStatus processErrorState(GstMessage* msg );
-    
+    ApiStatus processErrorState(GstMessage* msg );
 };
 
 

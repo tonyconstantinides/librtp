@@ -10,12 +10,14 @@
 #define IPStreamManager_hpp
 
 #include "Common.hpp"
+#include "StreamErrorHandler.hpp"
 
+// Just a base class that handles all errors handling but will e used as a tracing tool as well
 class IPStreamManager
 {
 public:
     IPStreamManager();
-    virtual ~IPStreamManager();
+    virtual ~IPStreamManager() = default;
     IPStreamManager(IPStreamManager const&)                      = delete;    // Copy construct
     IPStreamManager(IPStreamManager&&)                             = delete;   // Move construct
     IPStreamManager& operator=(IPStreamManager const&)             = delete;  // Copy assign
@@ -28,8 +30,8 @@ public:
     ApiStatus  errorApiState( const gchar * msg);
     ApiStatus  fatalApiState( const gchar* msg);
     ApiStatus   assignAuth( CamParmsEncription& camAuth);
-
-    
+    static void printMsg(GstMessage* msg, const gchar*  msgType);
+ 
     virtual ApiStatus   connectToIPCam(CamParmsEncription& camAuth) = 0;
     virtual ApiStatus   testConnection() = 0;
     // override in derived class
@@ -51,7 +53,9 @@ protected:
     bool         validStreamingMethod;
     std::string  connection_url;
     ApiStatus    ApiState;
- 
+    static  short messageCount;
+
+
     // sensitive data stored as properties
     class {
         std::string value;

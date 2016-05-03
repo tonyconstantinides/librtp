@@ -10,10 +10,8 @@
 #include "Common.hpp"
 #include "CamParmsEncription.hpp"
 
-
 using namespace Jetpack::Foundation;
 RtspManagerRef RtspManager::instance = nullptr;
-short RtspManager::messageCount = 0;
 
 RtspManager::RtspManager()
 {
@@ -52,8 +50,8 @@ ApiStatus RtspManager::connectToIPCam( CamParmsEncription& camAuth)
     connection_info.user       = strdup(camAuth.base64_decode(crypto_userName).c_str());
     connection_info.passwd     = strdup(camAuth.base64_decode(crypto_password).c_str());
     connection_info.host       = strdup(camAuth.base64_decode(crypto_host).c_str());
-    connection_info.port       = atoi(camAuth.base64_decode(crypto_port).c_str());
-    connection_info.abspath    = strdup(camAuth.base64_decode(crypto_absPath).c_str());
+    connection_info.port        = atoi(camAuth.base64_decode(crypto_port).c_str());
+    connection_info.abspath   = strdup(camAuth.base64_decode(crypto_absPath).c_str());
     connection_info.query      = strdup(camAuth.base64_decode(crypto_queryParms).c_str());
     
     logdbg("Connection to IPCamera	");
@@ -69,8 +67,8 @@ ApiStatus RtspManager::connectToIPCam( CamParmsEncription& camAuth)
     }
     result = gst_rtsp_connection_set_auth(data.connection,
                                           method,
-                                          strdup(connection_info.user),
-                                          strdup(connection_info.passwd)  );
+                                          connection_info.user,
+                                          connection_info.passwd  );
     if (result != GST_RTSP_OK)
     {
         return errorApiState("RtspManager::gst_rtsp_connection_set_auth failed!");
@@ -242,6 +240,11 @@ ApiStatus RtspManager::cleanUp()
         gst_object_unref(data.udpsrc);
     // now remove signals
      ApiState =  removeCallbacks();
+    free(connection_info.user);
+    free(connection_info.passwd);
+    free(connection_info.host);
+    free(connection_info.abspath);
+    free(connection_info.query);
     return ApiState;
 }
 
@@ -552,26 +555,7 @@ void RtspManager::rtspsrc_no_more_pads_cb(GstElement *rtspsrc, gpointer data)
      logdbg("No_more_pads in rtspsrc callback !");
 }
 
-void RtspManager::printMsg(GstMessage* msg, const gchar*  msgType)
-{
-    if (msg == NULL)
-    {
-        logerr() << "GstMessage to printMsg cannot be null";
-    }
-   
-    const gchar* msgTypeName    = GST_MESSAGE_TYPE_NAME(msg);
-    GstClockTime timeStamp = GST_MESSAGE_TIMESTAMP(msg);
-    const gchar* srcObj        = GST_MESSAGE_SRC_NAME(msg);
-    guint seqnum                 = GST_MESSAGE_SEQNUM(msg);
-    
-    logdbg ("--------------------------------------------------------------------------\n");
-    logdbg("Mesage SeqNum     : " << std::to_string(seqnum));
-    logdbg("Message type      : " << msgType);
-    logdbg("Messge type  Name : " << msgTypeName);
-    logdbg("Time Stamp when mesage created  : " << std::to_string(timeStamp));
-    logdbg("Src Object Name   : " << srcObj);
-    logdbg ("---------------------------------------------------------------------------\n");
-}
+
 
 void RtspManager::processMsgType(GstBus *bus, GstMessage* msg, CustomData* pdata)
 {
@@ -599,7 +583,7 @@ void RtspManager::processMsgType(GstBus *bus, GstMessage* msg, CustomData* pdata
         }
         case GST_MESSAGE_ERROR: {
             printMsg(msg, " GST_MESSAGE_ERROR");
-            errorHandler.processErrorState(msg);
+            pdata->errorHandler.processErrorState(msg);
             pdata->streamErrorCB((char *)"calling error callback");
             break;
         }

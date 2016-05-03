@@ -21,6 +21,8 @@
 #include <gst/rtsp/gstrtsp.h>
 #include <gst/gstutils.h>
 #include <gst/base/gstpushsrc.h>
+#include <gst/rtsp/gstrtspconnection.h>
+#include <curl/curl.h>
 #ifdef HAVE_CONFIG_H
 # include <config.h>
 #endif
@@ -34,6 +36,7 @@ class StreamManager;
 class RtspManager;
 class MjpegManager;
 class CamParmsEncription;
+class IPStreamManager;
 
 enum   class ApiStatus {OK, CLEAR, FAIL, FATAL_ERROR };
 enum   class StreamType {MJPEG_ONLY, H264_ONLY, H264_AND_MJPEG};

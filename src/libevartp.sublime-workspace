@@ -4,6 +4,10 @@
 		"selected_items":
 		[
 			[
+				"err",
+				"errorCB"
+			],
+			[
 				"NULL",
 				"nullptr"
 			],
@@ -55,7 +59,7 @@
 			"file": "/Users/tonyconstantinides/src/app/ui/presto/PREvaApplicationDelegate.cpp",
 			"settings":
 			{
-				"buffer_size": 24321,
+				"buffer_size": 25847,
 				"line_ending": "Unix"
 			}
 		},
@@ -216,7 +220,7 @@
 	],
 	"find":
 	{
-		"height": 31.0
+		"height": 40.0
 	},
 	"find_in_files":
 	{
@@ -230,6 +234,8 @@
 		"case_sensitive": false,
 		"find_history":
 		[
+			"sprintf",
+			"connectionCallback",
 			"rtpbin_pad_added_cb",
 			"g_signal_connect",
 			"kUnassignedWindowIndex",
@@ -254,7 +260,7 @@
 	"groups":
 	[
 		{
-			"selected": 2,
+			"selected": 0,
 			"sheets":
 			[
 				{
@@ -263,26 +269,28 @@
 					"semi_transient": false,
 					"settings":
 					{
-						"buffer_size": 24321,
+						"buffer_size": 25847,
 						"regions":
 						{
 						},
 						"selection":
 						[
 							[
-								13607,
-								13607
+								11456,
+								9782
 							]
 						],
 						"settings":
 						{
-							"syntax": "Packages/C++/C++.sublime-syntax"
+							"syntax": "Packages/C++/C++.sublime-syntax",
+							"tab_size": 4,
+							"translate_tabs_to_spaces": true
 						},
 						"translation.x": 0.0,
-						"translation.y": 3174.0,
+						"translation.y": 6408.0,
 						"zoom_level": 1.0
 					},
-					"stack_index": 2,
+					"stack_index": 0,
 					"type": "text"
 				},
 				{
@@ -298,8 +306,8 @@
 						"selection":
 						[
 							[
-								1279,
-								1279
+								4,
+								4
 							]
 						],
 						"settings":
@@ -308,7 +316,7 @@
 							"translate_tabs_to_spaces": false
 						},
 						"translation.x": 0.0,
-						"translation.y": 1003.0,
+						"translation.y": 0.0,
 						"zoom_level": 1.0
 					},
 					"stack_index": 1,
@@ -327,8 +335,8 @@
 						"selection":
 						[
 							[
-								23,
-								23
+								28,
+								28
 							]
 						],
 						"settings":
@@ -339,7 +347,7 @@
 						"translation.y": 0.0,
 						"zoom_level": 1.0
 					},
-					"stack_index": 0,
+					"stack_index": 2,
 					"type": "text"
 				}
 			]

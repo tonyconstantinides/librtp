@@ -8,18 +8,14 @@
 
 #ifndef RtspManager_hpp
 #define RtspManager_hpp
-#include <gio/gio.h>
-#include <gst/gst.h>
-#include <gst/rtsp/gstrtspconnection.h>
 #include "Common.hpp"
 #include "IPStreamManager.hpp"
 #include "CamParmsEncription.hpp"
-#include "StreamErrorHandler.hpp"
-#include <string>
 
 // Structure to contain all our information, so we can pass it around
 // must raw pointers as the underlying API is C-based
 typedef struct _Data{
+    _Data()  {}
     GMainLoop*    main_loop = nullptr;
     GstContext*   context   = nullptr;;
     GstElement*   pipeline  = nullptr;
@@ -27,21 +23,22 @@ typedef struct _Data{
     GstElement*   rtspsrc   = nullptr;
     GstElement*   rtph264depay = nullptr;
     GstElement*   mpegtsmux    = nullptr;
-    GstElement*   rtpmp2tpay   = nullptr;
-    GstElement*   identity     = nullptr;
-    GstElement*   udpsink      = nullptr;
-    GstElement*   udpsrc       = nullptr;
-    GstBus*         bus                 = nullptr;
-    GstMessage*   msg                   = nullptr;
+    GstElement*   rtpmp2tpay       = nullptr;
+    GstElement*   identity              = nullptr;
+    GstElement*   udpsink             = nullptr;
+    GstElement*   udpsrc               = nullptr;
+    GstBus*         bus                    = nullptr;
+    GstMessage*   msg                  = nullptr;
     GstRTSPConnection* connection       = nullptr;
-    GstRTSPUrl*        url              = nullptr;
+    GstRTSPUrl*        url                     = nullptr;
     GSocket*           writeSocket      = nullptr;
     GSocket*           readSocket       = nullptr;
     GstRTSPWatch*      rtspWatch        = nullptr;
-    gchar*             connectionUrl    = nullptr;
-    CallBackFunc       streamConnectionCB;
-    CallBackFunc       streamErrorCB;  
-}CustomData;		
+    gchar*             connectionUrl      = nullptr;
+    CallBackFunc              streamConnectionCB;
+    CallBackFunc              streamErrorCB;
+    StreamErrorHandler errorHandler;
+}CustomData;
 
 typedef std::shared_ptr<CustomData> CustomDataRef;
 
@@ -51,12 +48,12 @@ class RtspManager : public IPStreamManager
 {
 public:
     static  RtspManagerRef  createNewRtspManager();
-    virtual ~RtspManager()                      = default;
-    RtspManager(RtspManager const&)             = delete;    // Copy construct
-    RtspManager(RtspManager&&)                  = delete;   // Move construct
+    virtual ~RtspManager()  = default;
+    RtspManager(RtspManager const&)                        = delete;    // Copy construct
+    RtspManager(RtspManager&&)                                = delete;   // Move construct
     RtspManager& operator=(RtspManager const&)  = delete;  // Copy assign
-    RtspManager& operator=(RtspManager&&)       = default;  // Move assign
-    static  short messageCount;
+    RtspManager& operator=(RtspManager&&)                 = default;  // Move assign
+
     // the structure containes base64 encoded parms
     void addConnectionCallback(CallBackFunc   connectedCallBack) { data.streamConnectionCB = connectedCallBack; }
     void addErrorCallback(CallBackFunc streamErrorCallback)  {     data.streamErrorCB = streamErrorCallback; }
@@ -74,7 +71,6 @@ public:
     virtual ApiStatus   cleanUp()              override;
 // need to be static for gstreamer
     // utility funcs
-    static void printMsg(GstMessage* msg, const gchar*  msgType);
     static void processMsgType(GstBus *bus, GstMessage* msg, CustomData* data);
     static gboolean bus_call (GstBus *bus, GstMessage *msg, gpointer data);
     static void on_pad_added_cb (GstElement *element, GstPad *pad, CustomData  *data);
@@ -86,7 +82,7 @@ public:
 protected:
     RtspManager();
     static RtspManagerRef instance;
-    static StreamErrorHandler errorHandler;
+
     CustomData data;
     GstRTSPUrl connection_info = {
         GST_RTSP_LOWER_TRANS_TCP,
