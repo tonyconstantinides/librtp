@@ -16,7 +16,23 @@ MjpegManager::MjpegManager()
     logdbg("***************************************");
     logdbg("Entering MjpegManager constructor .......");
     gst_init (0, nullptr);
+    dataRef = std::make_shared<MjpegData>();
+    dataRef->errorHandlerRef = std::make_shared<StreamErrorHandler>();
     logdbg("Leaving MjpegManager constructor.......");
+    logdbg("***************************************");
+}
+
+MjpegManager::~MjpegManager()
+{
+    logdbg("***************************************");
+    logdbg("Entering MjpegManager destructor .......");
+    instance.reset();
+    instance   = nullptr;
+    dataRef->errorHandlerRef.reset();
+    dataRef->errorHandlerRef = nullptr;
+    dataRef.reset();
+    dataRef = nullptr;
+    logdbg("Leaving MjpegManager destructor.......");
     logdbg("***************************************");
 }
 
@@ -38,28 +54,29 @@ MjpegManagerRef  MjpegManager::createNewMjpegManager()
     return instance;
 }
 
-
-ApiStatus MjpegManager::connectToIPCam(CamParmsEncription& camAuth)
+ApiStatus MjpegManager::connectToIPCam(CamParmsEncriptionRef camAuthRef)
 {
     logdbg("*******************************************************");
     logdbg("Entering MjpegManager::connectToIPCam()");
-    assignAuth(camAuth);
+    // this assign it to shared ptr authCamRef
+    assignAuth(camAuthRef);
+    
     connection_url = "http://";
-    connection_url.append( camAuth.base64_decode(crypto_host).c_str() );
+    connection_url.append( authCamRef->base64_decode(crypto_host).c_str() );
     connection_url.append(":");
-    connection_url.append(camAuth.base64_decode(crypto_port).c_str() );
+    connection_url.append(authCamRef->base64_decode(crypto_port).c_str() );
     connection_url.append("/");
     connection_url.append("videostream.asf?");
     connection_url.append("user=");
-    connection_url.append(camAuth.base64_decode(crypto_userName).c_str() );
+    connection_url.append(authCamRef->base64_decode(crypto_userName).c_str() );
     connection_url.append("&pwd=");
-    connection_url.append(camAuth.base64_decode(crypto_password).c_str() );
+    connection_url.append(authCamRef->base64_decode(crypto_password).c_str() );
     
     logdbg("Connection to IPCamera	");
-    logdbg( "Host is            :  "  <<   camAuth.base64_decode(crypto_host).c_str()  );
-    logdbg("Port is              :   "  <<   camAuth.base64_decode(crypto_port).c_str() );
-    logdbg("Additional Path:   "  <<  camAuth.base64_decode(crypto_absPath).c_str() );
-    logdbg("User name       :   "   <<  camAuth.base64_decode(crypto_userName).c_str() );
+    logdbg( "Host is            :  "  <<   authCamRef->base64_decode(crypto_host).c_str()  );
+    logdbg("Port is              :   "  <<   authCamRef->base64_decode(crypto_port).c_str() );
+    logdbg("Additional Path:   "  <<  authCamRef->base64_decode(crypto_absPath).c_str() );
+    logdbg("User name       :   "   <<  authCamRef->base64_decode(crypto_userName).c_str() );
     
  	ApiState = testConnection();
     logdbg("Leaving MjegManager::connectToIPCam()");
@@ -118,21 +135,21 @@ ApiStatus MjpegManager::startLoop()
     logdbg("Entering startLoop.......");
     logdbg("***************************************");
     logdbg("Creating the main loop...");
-    data.main_loop = g_main_loop_new (NULL, FALSE);
+    dataRef->main_loop = g_main_loop_new (NULL, FALSE);
     // add a signal on the bus for messages
-    data.bus = gst_element_get_bus( data.pipeline);
-    g_signal_connect (data.bus, "message",  G_CALLBACK (MjpegManager::bus_call), &data);
-    gst_bus_add_signal_watch_full (data.bus, G_PRIORITY_DEFAULT);
-    data.msg = gst_bus_pop_filtered (data.bus, GST_MESSAGE_ANY);
+    dataRef->bus = gst_element_get_bus( dataRef->pipeline);
+    g_signal_connect (dataRef->bus, "message",  G_CALLBACK (MjpegManager::bus_call), &dataRef);
+    gst_bus_add_signal_watch_full (dataRef->bus, G_PRIORITY_DEFAULT);
+    dataRef->msg = gst_bus_pop_filtered (dataRef->bus, GST_MESSAGE_ANY);
     // Start playing
-    GstStateChangeReturn statechange = gst_element_set_state (data.pipeline, GST_STATE_PLAYING);
+    GstStateChangeReturn statechange = gst_element_set_state (dataRef->pipeline, GST_STATE_PLAYING);
     if (statechange == GST_STATE_CHANGE_FAILURE)
     {
         return errorApiState("RtspManager::Error calling gst_element_set_state()");
     }
     logdbg("Starting loop.......");
     // now start the loop
-    g_main_loop_run (data.main_loop);
+    g_main_loop_run (dataRef->main_loop);
     
     cleanUp();
     logdbg("***************************************");
@@ -151,13 +168,13 @@ ApiStatus MjpegManager::setElementsProperties()
     logdbg(  connection_url.c_str() );
     CamParmsEncription camAuth;
     
-    g_object_set( G_OBJECT (data.souphttpsrc),
-                 "location",            connection_url.c_str(),
-                 "user-agent",         USER_AGENT,
+    g_object_set( G_OBJECT (dataRef->souphttpsrc),
+                 "location",              connection_url.c_str(),
+                 "user-agent",           USER_AGENT,
                  "automatic-redirect",  TRUE,
-                 "is-live",                TRUE,
-                 "user-id",                camAuth.base64_decode(crypto_userName).c_str() ,
-                 "user=pw",              camAuth.base64_decode(crypto_password).c_str(),
+                 "is-live",                 TRUE,
+                 "user-id",                authCamRef->base64_decode(crypto_userName).c_str() ,
+                 "user=pw",              authCamRef->base64_decode(crypto_password).c_str(),
                  "timeout",                30,
                  "compress",             FALSE,
                  "keep-alive",             TRUE,
@@ -174,12 +191,12 @@ ApiStatus  MjpegManager::addCallbacks()
 {
     logdbg("***************************************");
     logdbg("Entering addCallbacks.......");
-    g_signal_connect (data.souphttpsrc, "pad-added",
-                      G_CALLBACK(MjpegManager::souphttpsrc_pad_added_cb),     &data);
-    g_signal_connect (data.souphttpsrc, "pad-removed",
-                      G_CALLBACK(MjpegManager::souphttpsrc_pad_removed_cb),  &data);
-    g_signal_connect (data.souphttpsrc, "no-more-pads",
-                      G_CALLBACK(MjpegManager::souphttpsrc_no_more_pads_cb), &data);
+    g_signal_connect (dataRef->souphttpsrc, "pad-added",
+                      G_CALLBACK(MjpegManager::souphttpsrc_pad_added_cb),     &dataRef);
+    g_signal_connect (dataRef->souphttpsrc, "pad-removed",
+                      G_CALLBACK(MjpegManager::souphttpsrc_pad_removed_cb),  &dataRef);
+    g_signal_connect (dataRef->souphttpsrc, "no-more-pads",
+                      G_CALLBACK(MjpegManager::souphttpsrc_no_more_pads_cb), &dataRef);
     logdbg("Leaving addCallbacks.......");
     logdbg("****************************************");
      return ApiState;
@@ -189,7 +206,7 @@ ApiStatus  MjpegManager::removeCallbacks()
 {
     logdbg("***************************************");
     logdbg("Entering removeCallbacks.......");
-     g_signal_handlers_disconnect_by_data(data.souphttpsrc, &data);
+     g_signal_handlers_disconnect_by_data(dataRef->souphttpsrc, &dataRef);
     logdbg("Leaving removeCallbacks.......");
     logdbg("****************************************");
      return ApiState;
@@ -200,19 +217,19 @@ ApiStatus  MjpegManager::cleanUp()
     logdbg("***************************************");
     logdbg("Entering cleanUp.......");
     // free the bus
-    gst_element_set_state (data.pipeline, GST_STATE_NULL);
-    gst_bus_remove_signal_watch(data.bus);
-    if (data.msg)
-        gst_message_unref (data.msg);
-    if (data.bus)
-        gst_object_unref (data.bus);
+    gst_element_set_state (dataRef->pipeline, GST_STATE_NULL);
+    gst_bus_remove_signal_watch(dataRef->bus);
+    if (dataRef->msg)
+        gst_message_unref (dataRef->msg);
+    if (dataRef->bus)
+        gst_object_unref (dataRef->bus);
     // free the pipeline
-    if (data.pipeline)
-        gst_object_unref (data.pipeline);
-    if (data.main_loop)
-        gst_object_unref(data.main_loop);
-    if (data.context)
-        gst_object_unref(data.context);
+    if (dataRef->pipeline)
+        gst_object_unref (dataRef->pipeline);
+    if (dataRef->main_loop)
+        gst_object_unref(dataRef->main_loop);
+    if (dataRef->context)
+        gst_object_unref(dataRef->context);
     // now remove signals
     ApiState =  removeCallbacks();
     logdbg("Leaving cleanUp.......");
@@ -224,34 +241,34 @@ ApiStatus  MjpegManager::createElements()
 {
     logdbg("***************************************");
     logdbg("Entering createElements.......");
-    data.pipeline              = gst_pipeline_new("pipeline");
-    data.souphttpsrc         = gst_element_factory_make("souphttpsrc", "souphttpsrc");
-    data.tcpserver            = gst_element_factory_make("tcpserver", "tcpserver");
-    data.multipartdemux    = gst_element_factory_make("multipartdemux", "multipartdemux");
-    data.jpegdec               = gst_element_factory_make("jpegdec", "jpegdec");
-    data.ffenc_mpeg4         = gst_element_factory_make("ffenc_mpeg4", "ffenc_mpeg4");
+    dataRef->pipeline              = gst_pipeline_new("pipeline");
+    dataRef->souphttpsrc          = gst_element_factory_make("souphttpsrc", "souphttpsrc");
+    dataRef->tcpserver            = gst_element_factory_make("tcpserver", "tcpserver");
+    dataRef->multipartdemux      = gst_element_factory_make("multipartdemux", "multipartdemux");
+    dataRef->jpegdec                 = gst_element_factory_make("jpegdec", "jpegdec");
+    dataRef->ffenc_mpeg4           = gst_element_factory_make("ffenc_mpeg4", "ffenc_mpeg4");
     
-    if (!data.pipeline)
+    if (!dataRef->pipeline)
     {
         return fatalApiState("PipeLine could not be created!");
     }
-    if (!data.souphttpsrc)
+    if (!dataRef->souphttpsrc)
     {
         return fatalApiState("souphttpsrc  element could not be created!");
     }
-    if (!data.tcpserver)
+    if (!dataRef->tcpserver)
     {
         return fatalApiState("tcpserver element could not be created!");
     }
-    if (!data.multipartdemux)
+    if (!dataRef->multipartdemux)
     {
         return fatalApiState("multipartdemux element could not be created!");
     }
-    if (!data.jpegdec)
+    if (!dataRef->jpegdec)
     {
         return fatalApiState("jpegdec element could not be created!");
     }
-    if (!data.ffenc_mpeg4)
+    if (!dataRef->ffenc_mpeg4)
     {
         return fatalApiState("ffenc_mpeg4 element could not be created!");
     }
@@ -283,9 +300,10 @@ gboolean MjpegManager::bus_call (GstBus *bus, GstMessage *msg, gpointer data)
     return TRUE;
 }
 
-void MjpegManager::processMsgType(GstBus *bus, GstMessage* msg, MjpegData* pdata)
+void MjpegManager::processMsgType(GstBus *bus, GstMessage* msg, gpointer data)
 {
     std::string url;
+    MjpegData* pdata = (MjpegData*)data;
     if (msg == NULL)
     {
         logerr() << "Msg is NULL in RtspManagerprocessMsgTyped fakesink to the pipeline!";
@@ -309,7 +327,7 @@ void MjpegManager::processMsgType(GstBus *bus, GstMessage* msg, MjpegData* pdata
         }
         case GST_MESSAGE_ERROR: {
             printMsg(msg, " GST_MESSAGE_ERROR");
-            pdata->errorHandler.processErrorState(msg);
+            pdata->errorHandlerRef->processErrorState(msg);
             pdata->streamErrorCB((char *)"calling error callback");
             break;
         }
@@ -369,13 +387,18 @@ void MjpegManager::processMsgType(GstBus *bus, GstMessage* msg, MjpegData* pdata
     }
 }
 
+ApiStatus  MjpegManager::linkElements()
+{
+    return ApiState;
+}
+
 // must connect dynamically because of how rtspsrc works!
-void MjpegManager::souphttpsrc_pad_added_cb (GstElement* souphttpsrc, GstPad* pad, MjpegData* data)
+void MjpegManager::souphttpsrc_pad_added_cb (GstElement* souphttpsrc, GstPad* pad, gpointer data)
 {
     logdbg("New pad in souphttpsrc callback !");
 }
 
-void MjpegManager::souphttpsrc_pad_removed_cb (GstElement* souphttpsrc, GstPad* pad, MjpegData *data)
+void MjpegManager::souphttpsrc_pad_removed_cb (GstElement* souphttpsrc, GstPad* pad, gpointer data)
 {
     logdbg("New pad in souphttpsrc removed callback !");
 }

@@ -1,10 +1,3 @@
-//
-//  RtspManager.cpp
-//  libevartp
-//
-//
-//
-
 #include <foundation/foundation.hpp>
 #include "RtspManager.hpp"
 #include "Common.hpp"
@@ -19,7 +12,23 @@ RtspManager::RtspManager()
     logdbg("Entering RtspManager constructor.......");
     logdbg("Now init gstreamer for RtspManager.......");
     gst_init (0, nullptr);
+    dataRef = std::make_shared<RtspData>();
+    dataRef->errorHandlerRef = std::make_shared<StreamErrorHandler>();
     logdbg("Leaving RtspManager constructor.......");
+    logdbg("***************************************");
+}
+
+RtspManager::~RtspManager()
+{
+    logdbg("***************************************");
+    logdbg("Entering RtspManager destructor.......");
+    instance.reset();
+    instance   = nullptr;
+    dataRef->errorHandlerRef.reset();
+    dataRef->errorHandlerRef = nullptr;
+    dataRef.reset();
+    dataRef = nullptr;
+    logdbg("Leaving RtspManager destructor.......");
     logdbg("***************************************");
 }
 
@@ -40,19 +49,19 @@ RtspManagerRef RtspManager::createNewRtspManager()
     return instance;
 }
 
-ApiStatus RtspManager::connectToIPCam( CamParmsEncription& camAuth)
+ApiStatus RtspManager::connectToIPCam( CamParmsEncriptionRef camAuthRef)
 {
     logdbg("***************************************");
     logdbg("Entering connectToIPCam.......");
     GstRTSPResult result;
     GstRTSPAuthMethod method = GST_RTSP_AUTH_DIGEST;
-    assignAuth(camAuth);
-    connection_info.user       = strdup(camAuth.base64_decode(crypto_userName).c_str());
-    connection_info.passwd     = strdup(camAuth.base64_decode(crypto_password).c_str());
-    connection_info.host       = strdup(camAuth.base64_decode(crypto_host).c_str());
-    connection_info.port        = atoi(camAuth.base64_decode(crypto_port).c_str());
-    connection_info.abspath   = strdup(camAuth.base64_decode(crypto_absPath).c_str());
-    connection_info.query      = strdup(camAuth.base64_decode(crypto_queryParms).c_str());
+    assignAuth(camAuthRef);
+    connection_info.user        = strdup(camAuthRef->base64_decode(crypto_userName).c_str());
+    connection_info.passwd     = strdup(camAuthRef->base64_decode(crypto_password).c_str());
+    connection_info.host        = strdup(camAuthRef->base64_decode(crypto_host).c_str());
+    connection_info.port        = atoi(camAuthRef->base64_decode(crypto_port).c_str());
+    connection_info.abspath    = strdup(camAuthRef->base64_decode(crypto_absPath).c_str());
+    connection_info.query       = strdup(camAuthRef->base64_decode(crypto_queryParms).c_str());
     
     logdbg("Connection to IPCamera	");
     logdbg("Host is: " <<   connection_info.host );
@@ -60,12 +69,12 @@ ApiStatus RtspManager::connectToIPCam( CamParmsEncription& camAuth)
     logdbg("Additional Path: " << connection_info.abspath );
     logdbg("User name:  "      <<  connection_info.user );
     
-    result = gst_rtsp_connection_create(&connection_info, &data.connection);
+    result = gst_rtsp_connection_create(&connection_info, &dataRef->connection);
     if (result != GST_RTSP_OK)
     {
         return fatalApiState("RtspManager::gst_rtsp_connection_create failed!");
     }
-    result = gst_rtsp_connection_set_auth(data.connection,
+    result = gst_rtsp_connection_set_auth(dataRef->connection,
                                           method,
                                           connection_info.user,
                                           connection_info.passwd  );
@@ -73,18 +82,17 @@ ApiStatus RtspManager::connectToIPCam( CamParmsEncription& camAuth)
     {
         return errorApiState("RtspManager::gst_rtsp_connection_set_auth failed!");
     }
+
     GTimeVal time;
     time.tv_sec = 30;
     time.tv_usec = 3000000;
     
-    result = gst_rtsp_connection_connect(data.connection, &time);
+    result = gst_rtsp_connection_connect(dataRef->connection, &time);
     if (result != GST_RTSP_OK)
    {
         return fatalApiState("RtspManager::gst_rtsp_connection_connect failed!");
     }
-    logdbg("----------------------------------------------------------------");
-    logdbg("Test TCP/IP connection to IP Camera successful!");
-    logdbg("----------------------------------------------------------------");
+    dataRef->connected = true;
      // setting the connection_url
      connection_url = "rtsp://";
      connection_url.append(connection_info.user);
@@ -97,14 +105,19 @@ ApiStatus RtspManager::connectToIPCam( CamParmsEncription& camAuth)
      connection_url.append(connection_info.abspath);
      connection_url.append(connection_info.query);
      logdbg("Setting the connection url");
-     data.connectionUrl = new gchar(connection_url.length() + 1);
-     connection_url.copy(data.connectionUrl, connection_url.length() );
-     data.connectionUrl[ connection_url.length() + 1] = '\0';   
-     logdbg(data.connectionUrl);
-     logdbg("Connection url set!");
+    dataRef->connectionUrl =  new  gchar[connection_url.length() + 1];
+    std::strncpy( dataRef->connectionUrl ,  connection_url.c_str(), connection_url.length());
+    dataRef->connectionUrl[connection_url.length()] = '\0';
     
+     logdbg(dataRef->connectionUrl);
+     logdbg("Connection url set!");
      ApiState = testConnection();
- 
+    if (ApiState == ApiStatus::OK)
+    {
+        logdbg("----------------------------------------------------------------");
+        logdbg("Test TCP/IP connection to IP Camera successful!");
+        logdbg("----------------------------------------------------------------");
+    }
     logdbg("Exiting connectToIPCam.......");
     logdbg("***************************************");
     return ApiState;
@@ -112,47 +125,49 @@ ApiStatus RtspManager::connectToIPCam( CamParmsEncription& camAuth)
 
 ApiStatus RtspManager::testConnection()
 {
-    data.readSocket = gst_rtsp_connection_get_read_socket(data.connection);
-    if (!data.readSocket)
+    dataRef->readSocket = gst_rtsp_connection_get_read_socket(dataRef->connection);
+    if (!dataRef->readSocket)
     {
         return errorApiState("RtspManager::gst_rtsp_connection_get_read_socket failed!");
     }
-    data.writeSocket =  gst_rtsp_connection_get_write_socket(data.connection);
-    if (!data.writeSocket)
+    dataRef->writeSocket =  gst_rtsp_connection_get_write_socket(dataRef->connection);
+    if (!dataRef->writeSocket)
     {
         return errorApiState("RtspManager::gst_rtsp_connection_get_write_socket failed!");
     }
-    data.url =  gst_rtsp_connection_get_url(data.connection);
-    if (data.url == NULL)
+    dataRef->url =  gst_rtsp_connection_get_url(dataRef->connection);
+    if (dataRef->url == NULL)
     {
         return errorApiState("RtspManager::gst_rtsp_connection_get_url failed!");
     }
     // compare to ensure we dealing with the same thing
-    if (std::strcmp(data.url->user, connection_info.user) != 0 )
+    if (std::strcmp(dataRef->url->user, connection_info.user) != 0 )
     {
         return errorApiState(" RtspManager::gst_rtsp_connection_get_url failed for username!");
     }
-    if (std::strcmp(data.url->passwd , connection_info.passwd) != 0 )
+    if (std::strcmp(dataRef->url->passwd , connection_info.passwd) != 0 )
     {
         return errorApiState("RtspManager::gst_rtsp_connection_get_url failed for password!");
     }
-    if (std::strcmp(data.url->host,  connection_info.host) != 0 )
+    if (std::strcmp(dataRef->url->host,  connection_info.host) != 0 )
     {
         return errorApiState("RtspManager::gst_rtsp_connection_get_url failed for host!");
     }
-    if (data.url->port !=   connection_info.port)
+    if (dataRef->url->port !=   connection_info.port)
     {
         return errorApiState("RtspManager::gst_rtsp_connection_get_url failed for host!");
     }
     logdbg("Freeing the test connection........");
     // free the test client connection objects
-    gst_rtsp_connection_close(data.connection);
-    gst_rtsp_connection_free(data.connection);
+    gst_rtsp_connection_close(dataRef->connection);
+    gst_rtsp_connection_free(dataRef->connection);
     return ApiState;
 }
 
 ApiStatus RtspManager::makeElements()
 {
+    if (!dataRef->connected || ApiState == ApiStatus::FATAL_ERROR)
+        return ApiState;
     logdbg("***************************************");
     logdbg("Entering makeElements.......");	
     if (createElements() == ApiStatus::OK)
@@ -166,12 +181,16 @@ ApiStatus RtspManager::makeElements()
 
 ApiStatus RtspManager::setupPipeLine()
 {
+    if (!dataRef->connected || ApiState == ApiStatus::FATAL_ERROR)
+        return ApiState;
+    
     logdbg("***************************************");
     logdbg("Entering setupPipeLine.......");
   
      logdbg("Adding items to the video pipline.......");
     if (addElementsToBin() == ApiStatus::OK)
     {
+        linkElements();
         addCallbacks();
     }
    logdbg("Exiting setupPipeLine.......");
@@ -181,24 +200,27 @@ ApiStatus RtspManager::setupPipeLine()
 
 ApiStatus RtspManager::startLoop()
 {
+    if (!dataRef->connected || ApiState == ApiStatus::FATAL_ERROR)
+        return ApiState;
+    
     logdbg("***************************************");
     logdbg("Entering startLoop.......");
     logdbg("Creating the main loop...");
-    data.main_loop = g_main_loop_new (NULL, FALSE);
+    dataRef->main_loop = g_main_loop_new (NULL, FALSE);
     // add a signal on the bus for messages
-    data.bus = gst_element_get_bus( data.pipeline);
-    g_signal_connect (data.bus, "message",  G_CALLBACK (RtspManager::bus_call), &data);
-    gst_bus_add_signal_watch_full (data.bus, G_PRIORITY_DEFAULT);
-    data.msg = gst_bus_pop_filtered (data.bus, GST_MESSAGE_ANY);
+    dataRef->bus = gst_element_get_bus( dataRef->pipeline);
+    g_signal_connect (dataRef->bus, "message",  G_CALLBACK (RtspManager::bus_call), &dataRef);
+    gst_bus_add_signal_watch_full (dataRef->bus, G_PRIORITY_DEFAULT);
+    dataRef->msg = gst_bus_pop_filtered (dataRef->bus, GST_MESSAGE_ANY);
     // Start playing
-    GstStateChangeReturn statechange = gst_element_set_state (data.pipeline, GST_STATE_PLAYING);
+    GstStateChangeReturn statechange = gst_element_set_state (dataRef->pipeline, GST_STATE_PLAYING);
     if (statechange == GST_STATE_CHANGE_FAILURE)
     {
         return errorApiState("RtspManager::Error calling gst_element_set_state()");
     }
     logdbg("Starting loop.......");
     // now start the loop
-    g_main_loop_run (data.main_loop);
+    g_main_loop_run (dataRef->main_loop);
     
     cleanUp();
     logdbg("Exiting startLoop.......");
@@ -208,36 +230,34 @@ ApiStatus RtspManager::startLoop()
 
 ApiStatus RtspManager::cleanUp()
 {
-    // free the bus
-    gst_element_set_state (data.pipeline, GST_STATE_NULL);
-    gst_bus_remove_signal_watch(data.bus);
-    if (data.msg)
-        gst_message_unref (data.msg);
-    if (data.bus)
-        gst_object_unref (data.bus);
+    gst_element_set_state (dataRef->pipeline, GST_STATE_NULL);
+    gst_bus_remove_signal_watch(dataRef->bus);
+
+    if (dataRef->msg)
+        gst_message_unref (dataRef->msg);
+    if (dataRef->bus)
+        gst_object_unref (dataRef->bus);
+    if (dataRef->queue1)
+        gst_object_unref (dataRef->queue1);
+    if (dataRef->queue2)
+        gst_object_unref (dataRef->queue2);
     // free the pipeline
-    if (data.pipeline)
-        gst_object_unref (data.pipeline);
-    if (data.main_loop)
-        gst_object_unref(data.main_loop);
-    if (data.context)
-        gst_object_unref(data.context);
-    if (data.rtpbin)
-        gst_object_unref(data.rtpbin);
-    if (data.rtspsrc)
-        gst_object_unref(data.rtspsrc);
-    if (data.rtph264depay)
-        gst_object_unref(data.rtph264depay);
-    if (data.mpegtsmux)
-        gst_object_unref(data.mpegtsmux);
-    if (data.rtpmp2tpay)
-        gst_object_unref(data.rtpmp2tpay);
-    if (data.identity)
-        gst_object_unref(data.identity);
-    if (data.udpsink)
-        gst_object_unref(data.udpsink);
-    if (data.udpsrc)
-        gst_object_unref(data.udpsrc);
+    if (dataRef->pipeline)
+        gst_object_unref (dataRef->pipeline);
+    if (dataRef->main_loop)
+        gst_object_unref(dataRef->main_loop);
+    if (dataRef->context)
+        gst_object_unref(dataRef->context);
+    if (dataRef->rtspsrc)
+        gst_object_unref(dataRef->rtspsrc);
+    if (dataRef->rtph264depay)
+        gst_object_unref(dataRef->rtph264depay);
+    if (dataRef->mpegtsmux)
+        gst_object_unref(dataRef->mpegtsmux);
+    if (dataRef->rtpmp2tpay)
+        gst_object_unref(dataRef->rtpmp2tpay);
+    if (dataRef->udpsink)
+        gst_object_unref(dataRef->udpsink);
     // now remove signals
      ApiState =  removeCallbacks();
     free(connection_info.user);
@@ -250,55 +270,117 @@ ApiStatus RtspManager::cleanUp()
 
 ApiStatus RtspManager::createElements()
 {
-    data.pipeline     = gst_pipeline_new("pipeline");
-    data.rtpbin       = gst_element_factory_make("rtpbin", "rtpbin");
-    data.rtspsrc      = gst_element_factory_make ("rtspsrc", "rtspsrc");
-    data.rtph264depay = gst_element_factory_make("rtph264depay", "rtph264depay");
-    data.mpegtsmux    = gst_element_factory_make("mpegtsmux", "mpegtsmux");
-    data.rtpmp2tpay   = gst_element_factory_make ("rtpmp2tpay", "rtpmp2tpay");
-    data.udpsink      = gst_element_factory_make ("udpsink", "sink");
+    logdbg("***************************************");
+    logdbg("Enter createElements");
     
-    if (!data.pipeline)
+    dataRef->pipeline     = gst_pipeline_new("pipeline");
+    dataRef->rtpbin       =  gst_element_factory_make ( "rtpbin", "rtpbin" );
+    dataRef->rtspsrc      = gst_element_factory_make ("rtspsrc", "source");
+    dataRef->queue1          = gst_element_factory_make("queue", "queue1");
+    dataRef->rtph264depay = gst_element_factory_make("rtph264depay", "decoder");
+    dataRef->queue2          = gst_element_factory_make("queue", "queue2");
+    dataRef->mpegtsmux    = gst_element_factory_make("mpegtsmux", "mpegtsmux");
+    dataRef->rtpmp2tpay   = gst_element_factory_make ("rtpmp2tpay", "rtpmp2tpay");
+   
+    dataRef->udpsink      = gst_element_factory_make ("udpsink", "sink");
+    
+    if (dataRef->pipeline)
+    {
+        logdbg("pipeline element created!");
+    }
+    else
     {
         return fatalApiState("PipeLine could not be created!");
     }
-    if (!data.rtpbin)
+    
+    if( dataRef->rtpbin)
     {
-        return fatalApiState("rtpbin  element could not be created!");
+        logdbg("rtpbin element created!");
     }
-    if (!data.rtspsrc)
+    else
+    {
+        return fatalApiState("Rtpbin could not be created");
+    }
+ 
+    if (dataRef->rtspsrc)
+    {
+        logdbg("rtspsrc element created!");
+    }
+    else
     {
         return fatalApiState("rtspsrc element could not be created!");
     }
-    if (!data.rtph264depay)
+
+    if (dataRef->queue1)
+    {
+        logdbg("queue1 element created");
+    }
+    else
+    {
+        return fatalApiState("queue2 element could not be created!");
+    }
+    
+    if (dataRef->rtph264depay)
+    {
+        logdbg("rtph264depay element created!");
+    }
+    else
     {
         return fatalApiState("rtph264depay element could not be created!");
     }
-    if (!data.mpegtsmux)
+    
+    if (dataRef->queue2)
+    {
+        logdbg("queue element created");
+    }
+    else
+    {
+        return fatalApiState("queue2 element could not be created!");
+    }
+    
+    if (dataRef->mpegtsmux)
+    {
+        logdbg("mpegtsmux element created!");
+    }
+    else
     {
         return fatalApiState("mpegtsmux element could not be created!");
     }
-    if (!data.rtpmp2tpay)
+    
+    if (dataRef->rtpmp2tpay)
+    {
+         logdbg("rtpmp2tpay element created!");
+    }
+    else
     {
         return fatalApiState("rtpmp2tpay element could not be created!");
     }
-    if (!data.udpsink )
+   
+    if (dataRef->udpsink )
+    {
+        logdbg("udpsink element created!");
+    }
+    else
     {
         return fatalApiState("udpsink element could not be created!");
     }
+    logdbg("Leaving createElements");
+    logdbg("***************************************");
     return ApiState;
 }
 
 ApiStatus  RtspManager::setElementsProperties()
 {
-    g_object_set( G_OBJECT (data.rtpbin),
+    logdbg("***************************************");
+    logdbg("Entering setElementsProperties");
+     g_object_set( G_OBJECT (dataRef->rtpbin),
                  "name",         "rtpbin",
-                 NULL);
+                NULL);
     // setting properties on rtspsrc
     logdbg("Setting url connection:");
     logdbg(  connection_url.c_str() );
     
-    g_object_set( G_OBJECT (data.rtspsrc),
+    g_object_set( G_OBJECT (dataRef->rtspsrc),
                  "location",            connection_url.c_str(),
                  "ntp-sync",            FALSE,
                  "async-handling",    FALSE,
@@ -316,119 +398,198 @@ ApiStatus  RtspManager::setElementsProperties()
                  "ntp-time-source",    0,
                  "short-header",       FALSE,
                  NULL);
+
     
-    g_object_set( G_OBJECT (data.udpsink),
+    g_object_set( G_OBJECT(dataRef->queue1),
+                 "max-size-buffers", 2,
+                 "max-size-bytes", 20000,
+                 "leaky",    1,
+                 NULL);
+                 
+    g_object_set( G_OBJECT(dataRef->queue2),
+                 "max-size-buffers", 2,
+                 "max-size-bytes", 20000,
+                 "leaky",    1,
+                 NULL);
+    
+    g_object_set( G_OBJECT (dataRef->udpsink),
                  "host",        "127.0.0.1",
                  "port",        8000,
                  "sync",      FALSE,
                  "async",    FALSE,
                  NULL);
+    logdbg("Leaving setElementsProperties");
+    logdbg("***************************************");
     return ApiState;
 }
 
 ApiStatus RtspManager::addElementsToBin()
 {
-    if (!gst_bin_add(GST_BIN(data.rtpbin),   data.rtspsrc ))
+    logdbg("***************************************");
+    logdbg("Entering addElementsToBin");
+
+     if (gst_bin_add(GST_BIN(dataRef->rtpbin),   dataRef->rtspsrc ))
+    {
+        logdbg("rtspsrc added to rtpbin!");
+    }
+    else
     {
         return errorApiState("Unable to add rtspsrc to rtpbin!");
-    } else
-    {
-        logdbg("rtspsrc added to rtspbin!");
     }
     
-    if (!gst_bin_add(GST_BIN(data.rtpbin),   data.rtph264depay ))
+    if (gst_bin_add(GST_BIN(dataRef->rtpbin), dataRef->queue1))
     {
-        return errorApiState("Unable to add rtph264depay to rtpbin!");
-    } else
+        logdbg("queue1 added to rtpbin!");
+    }
+    else
+    {
+        return errorApiState("Unable to add queue1 to rtpbin!");
+    }
+    
+    if (gst_bin_add(GST_BIN(dataRef->rtpbin),   dataRef->rtph264depay ))
     {
         logdbg("rtph264depay added to rtspbin!");
     }
-    
-    if (!gst_bin_add(GST_BIN(data.rtpbin), data.mpegtsmux ))
+    else
     {
-        return errorApiState("Unable to add rmpegtsmux to rtpbin!");
-    }else
+        return errorApiState("Unable to add rtph264depay to rtpbin!");
+    }
+    
+    if (gst_bin_add(GST_BIN(dataRef->rtpbin), dataRef->queue2))
+    {
+        logdbg("queue2  added rto tpbin!");
+    }
+    else
+    {
+        return errorApiState("Unable to add queue2 to rtpbin!");
+    }
+    
+    if (gst_bin_add(GST_BIN(dataRef->rtpbin), dataRef->mpegtsmux ))
     {
         logdbg("rmpegtsmux added to rtspbin!");
     }
-    
-    if (!gst_bin_add(GST_BIN(data.rtpbin),   data.rtpmp2tpay ))
+    else
     {
-        return errorApiState( "Unable to add rtpmp2tpay to rtpbin!");
-    } else
+        return errorApiState("Unable to add rmpegtsmux to rtpbin!");
+    }
+    
+    if (gst_bin_add(GST_BIN(dataRef->rtpbin),   dataRef->rtpmp2tpay ))
     {
         logdbg("rtpmp2tpay added to rtspbin!");
     }
-    
-    if (!gst_bin_add(GST_BIN(data.rtpbin),   data.udpsink ))
+   else
     {
-        return errorApiState("Unable to add udpsink to rtpbin!");
-    } else
+        return errorApiState( "Unable to add rtpmp2tpay to rtpbin!");
+    }
+    
+    if (gst_bin_add(GST_BIN(dataRef->rtpbin),   dataRef->udpsink ))
     {
         logdbg("udpsink added to rtspbin!");
     }
-    
-    if (!gst_bin_add(GST_BIN(data.pipeline),   data.rtpbin ))
-    {
-        return errorApiState("Unable to add rtpbin to the pipeline!");
-    }
     else
+    {
+        return errorApiState("Unable to add udpsink to rtpbin!");
+    }
+
+    
+    if (gst_bin_add(GST_BIN(dataRef->pipeline),   dataRef->rtpbin ))
     {
         logdbg("rtpbin added to pipeline!");
     }
-    
-    if (!gst_element_link(data.rtph264depay, data.mpegtsmux))
+    else
     {
-        return errorApiState("Error Linking elements rtph264depay to mpegtsmux!");
+        return errorApiState("Unable to add rtpbin to the pipeline!");
+    }
+    logdbg("Leaving addElementsToBin");
+    logdbg("***************************************");
+    return ApiState;
+}
+
+ApiStatus  RtspManager::linkElements()
+{
+    logdbg("***************************************");
+    logdbg("Enter  linkElements");
+
+    
+    if (gst_element_link(dataRef->queue1, dataRef->rtph264depay))
+    {
+        logdbg("queue1 linked to rtph264depay .....");
     }
     else
     {
-        logdbg("rtph264depay linked to mpegtsmux .....");
+        return errorApiState("Error Linking elements queue1 to rtph264depay!");
     }
     
-    if (!gst_element_link(data.mpegtsmux, data.rtpmp2tpay))
+    if (gst_element_link(dataRef->rtph264depay, dataRef->queue2))
     {
-        return errorApiState("Error Linking elements mpegtsmux to rtpmp2tpay!");
+           logdbg("rtph264depay linked to queue2 .....");
     }
     else
+    {
+        return errorApiState("Error Linking elements rtph264depay to queue2!");
+    }
+
+    
+    if (gst_element_link(dataRef->queue2, dataRef->mpegtsmux))
+    {
+        logdbg("queue2 linked to mpegtsmux .....");
+    }
+    else
+    {
+        return errorApiState("Error Linking elements queue2 to mpegtsmux!");
+    }
+    
+    if (gst_element_link(dataRef->mpegtsmux, dataRef->rtpmp2tpay))
     {
         logdbg("mpegtsmux linked to rtpmp2tpay .....");
     }
-    
-    if (!gst_element_link(data.rtpmp2tpay, data.udpsink))
-    {
-        return errorApiState("Error Linking elements rtpmp2tpay to udpsink!");
-    }
     else
+    {
+        return errorApiState("Error Linking elements mpegtsmux to rtpmp2tpay!");
+    }
+    
+    if (gst_element_link(dataRef->rtpmp2tpay, dataRef->udpsink))
     {
         logdbg("rtpmp2tpay linked to udpsink .....");
     }
+    else
+    {
+        return errorApiState("Error Linking elements rtpmp2tpay to udpsink!");
+    }
+    logdbg("Leaving  linkElements");
+    logdbg("***************************************");
     return ApiState;
 }
 
 ApiStatus RtspManager::addCallbacks()
 {
-    logdbg("Adding Rtpbin callbacks .....");
-    g_signal_connect (data.rtpbin, "pad-added", G_CALLBACK (RtspManager::rtpbin_pad_added_cb), &data);
+    logdbg("***************************************");
+    logdbg("Adding  callbacks .....");
+    g_signal_connect (dataRef->rtpbin, "pad-added", G_CALLBACK (RtspManager::rtpbin_pad_added_cb), &dataRef);
     // add dynamic pads to connect them when added
     logdbg("Adding Rtspsrc  callbacks......");
-    g_signal_connect (data.rtspsrc,"pad-added",       G_CALLBACK(RtspManager::rtspsrc_pad_added_cb),   &data);
-    g_signal_connect (data.rtspsrc, "pad-removed",    G_CALLBACK(RtspManager::rtspsrc_pad_removed_cb), &data);
-    g_signal_connect (data.rtspsrc, "no-more-pads",   G_CALLBACK(RtspManager::rtspsrc_no_more_pads_cb), &data);
+    g_signal_connect (dataRef->rtspsrc,"pad-added",
+                      G_CALLBACK(RtspManager::rtspsrc_pad_added_cb),  &dataRef);
+    g_signal_connect (dataRef->rtspsrc, "pad-removed",
+                      G_CALLBACK(RtspManager::rtspsrc_pad_removed_cb), &dataRef);
+    g_signal_connect (dataRef->rtspsrc, "no-more-pads",
+                      G_CALLBACK(RtspManager::rtspsrc_no_more_pads_cb), &dataRef);
+    logdbg("Leaving addCallbacks().....");
+    logdbg("***************************************");
     return ApiState;
 }
 
 ApiStatus RtspManager::removeCallbacks()
 {
-    g_signal_handlers_disconnect_by_data(data.rtpbin, &data);
-    g_signal_handlers_disconnect_by_data(data.rtspsrc, &data);
+    //g_signal_handlers_disconnect_by_data(dataRef->rtpbin, &dataRef);
+    g_signal_handlers_disconnect_by_data(dataRef->rtspsrc, &dataRef);
     return ApiState;
 }
 
-void RtspManager::on_pad_added_cb (GstElement *element, GstPad *pad, CustomData*  data)
+void RtspManager::on_pad_added_cb (GstElement *element, GstPad *pad, RtspDataRef  appRef)
 {
     GstPad *sinkpad;
-    GstElement *decoder = data->rtph264depay;
+    GstElement *decoder = appRef->rtph264depay;
     /* We can now link this pad with the rtsp-decoder sink pad */
     logdbg ("Dynamic pad created, linking source/demuxer");
     sinkpad = gst_element_get_static_pad (decoder, "sink");
@@ -436,130 +597,199 @@ void RtspManager::on_pad_added_cb (GstElement *element, GstPad *pad, CustomData*
     gst_object_unref (sinkpad);
 }
 
-void RtspManager::rtpbin_pad_added_cb(GstElement *rtpbin, GstPad  *pad, CustomData *data)
+void RtspManager::rtpbin_pad_added_cb(GstElement *rtpbin, GstPad  *pad, RtspDataRef appRef)
 {
+    logdbg("---------------------------------------------------------------------------------");
     logdbg("Entering  RtspManager::rtpbin_pad_added_cb ................");
+    
     gchar *dynamic_pad_name;
-  
     dynamic_pad_name = gst_pad_get_name (pad);
- 
-
     logdbg("New payload on pad: " << GST_PAD_NAME(pad); );
     logdbg("Getting send_rtp_sink_0 element");
-    GstPad* srcPad1     = gst_element_get_static_pad(data->rtpbin, "send_rtp_sink_0");
+    GstPad* srcPad1     = gst_element_get_static_pad(appRef->rtpbin, "send_rtp_sink_0");
     if (srcPad1)
     {
       logdbg("Pad from send_rtp_sink_0 element obtained from rtpbin");
     }    
-    GstPad* srcPad2    = gst_element_get_static_pad(data->rtpbin, "send_rtp_src_0");
+    GstPad* srcPad2    = gst_element_get_static_pad(appRef->rtpbin, "send_rtp_src_0");
     if (srcPad2)    
     {
       logdbg("Pad from send_rtp_sink_0 element obtained from rtpbin");
     }
 
-    GstElement *linkElement = (GstElement *) data->udpsink;
-    GstPad *sinkpad = gst_element_get_static_pad (linkElement, "sink");
-    if (GST_PAD_IS_LINKED(sinkpad))
+    GstElement* linkElement = (GstElement *) appRef->udpsink;
+    if ( !linkElement )
     {
+        logerr() << "udpsink element is null in rtpbin_pad_added_cb";
+        return;
+    }
+        
+    GstPad *sinkpad = gst_element_get_static_pad (linkElement, "sink");
+    if (!sinkpad)
+    {
+        logerr() << "unable to get sink element in rtpbin_pad_added_cb, returning" ;
+        return;
+    } else {
         gst_pad_unlink (pad, sinkpad);
     }
-    GstPadLinkReturn linkreturn = gst_pad_link (pad, sinkpad);
-    gst_object_unref(GST_OBJECT (sinkpad));
-
-   if (linkreturn == GST_PAD_LINK_OK)
-    {
-        if(gst_element_link_pads(data->rtpbin, dynamic_pad_name, data->rtspsrc, "sink")){
-            logdbg("Pad for rtph264depay linked");
-            g_free (dynamic_pad_name);
-            return;
-        }
-        else if(gst_element_link_pads(data->rtpbin, dynamic_pad_name, data->udpsink, "sink")){
-            logdbg("Pad for udpsink linked");
-            g_free (dynamic_pad_name);
-            return;
-        }
-        else if(gst_pad_link(srcPad1, sinkpad) == GST_PAD_LINK_OK) {
-            logdbg("send_rtp_sink_0 for udpsink linked");
-            g_free (dynamic_pad_name);
-            return;
-        }    
-       else if(gst_pad_link(srcPad2, sinkpad) == GST_PAD_LINK_OK) {
-            logdbg("send_rtp_src_0  for udpsink linked");
-            g_free (dynamic_pad_name);
-            return;
-        }    
-    } 
+    g_free (dynamic_pad_name);
     gst_object_unref (srcPad1);
     gst_object_unref (srcPad2);
   
     logdbg("Leaving  RtspManager::rtpbin_pad_added_cb ................");
- }
-
-// must connect dynamically because of how rtspsrc works!
-void RtspManager::rtspsrc_pad_added_cb (GstElement* rtspsrc, GstPad* pad, CustomData* data)
-{
-    logdbg("Entering  RtspManager::rtspsrc_pad_added_cb ................");
-    logdbg("New pad in rtspsrc added!");
-    gchar *dynamic_pad_name;
-    GstPad* new_pad = nullptr;
-    dynamic_pad_name = gst_pad_get_name (pad);
-    GstCaps* caps = gst_pad_get_current_caps(pad);
-    logdbg("Pad that was passed to rtspsrc_pad_added_cb name: ");
-    logdbg(dynamic_pad_name);
-
-    if (caps && pad && rtspsrc)
-    {
-        new_pad = gst_element_get_compatible_pad(rtspsrc, pad, caps);
-        dynamic_pad_name = gst_pad_get_name(new_pad);
-    }
-    
-    GstElement *linkElement = (GstElement *) data->rtph264depay;
-    GstPad *sinkpad = gst_element_get_static_pad (linkElement, "sink");
-    if (GST_PAD_IS_LINKED(sinkpad))
-    {
-        gst_pad_unlink (pad, sinkpad);
-    }
-    GstPadLinkReturn linkreturn = gst_pad_link (pad, sinkpad);
-    gst_object_unref(GST_OBJECT (sinkpad));
-    
-    if (linkreturn == GST_PAD_LINK_OK)
-    {
-        if(gst_element_link_pads(data->rtspsrc, dynamic_pad_name, data->rtph264depay, "sink")){
-            logdbg("Pad for rtph264depay linked");
-            g_free (dynamic_pad_name);
-            return;
-        }
-    }
-    
-    GstPad* send_rtp_sink = gst_element_get_request_pad (data->rtpbin,"send_rtp_sink_0");
-    GstPad* send_rtp_src  = gst_element_get_request_pad (data->rtpbin, "send_rtp_src_0");
-    GstPad* tmp_pad = gst_element_get_static_pad (data->udpsink, "sink");
-    if (send_rtp_src)
-    {
-        gst_pad_link (send_rtp_src,tmp_pad);
-    }
-    if (send_rtp_sink)
-    {
-        gst_pad_link (send_rtp_sink, tmp_pad);
-    }
-    logdbg("Leaving RtspManager::rtspsrc_pad_added_cb ................");
+    logdbg("---------------------------------------------------------------------------------");
 }
 
-void RtspManager::rtspsrc_pad_removed_cb (GstElement *rtspsrc, GstPad* pad, CustomData *data)
+// must connect dynamically because of how rtspsrc works!
+void RtspManager::rtspsrc_pad_added_cb (GstElement* rtspsrc, GstPad* new_pad, RtspDataRef appRef)
+{
+    logdbg("--------------------------------------------------------------------------");
+    logdbg(" Entering rtspsrc_pad_added_cb");
+
+    GstCaps *new_pad_caps = NULL;
+    GstStructure *new_pad_struct = NULL;
+    const gchar *new_pad_type = NULL;
+    gchar* description = NULL;
+    gboolean videoRtp = false;
+    gboolean audioRtp = false;
+    /* Check the new pad's type */
+    new_pad_caps = gst_pad_get_current_caps(new_pad);
+    new_pad_struct = gst_caps_get_structure (new_pad_caps, 0);
+    new_pad_type   = gst_structure_get_name (new_pad_struct);
+    description         = gst_caps_to_string(new_pad_caps) ;
+    
+    GstPadDirection direction  = gst_pad_get_direction(new_pad);
+    if (direction == GST_PAD_SRC)
+        logdbg("New pad direction is a SRC");
+    if (direction == GST_PAD_SINK)
+        logdbg("New pad direction is a SINK");
+    
+    if (gst_pad_is_active(new_pad))
+        logdbg("New pad is active");
+    else
+        logdbg("New pad is NOT active");
+    
+    logdbg ("Received new pad " <<  GST_PAD_NAME (new_pad) << " to "  <<  GST_ELEMENT_NAME (rtspsrc));
+    logdbg( "New caps of dynamic Pad is  " << description  << "/n");
+    
+    gchar *dynamic_pad_name;
+    dynamic_pad_name = gst_pad_get_name (new_pad);
+    logdbg("New payload on pad: " << GST_PAD_NAME(new_pad); );
+    std::string rtpType = description;
+    std::size_t found;
+    found = rtpType.find("video");
+    if (found != std::string::npos)
+    {
+        logdbg("Video rtp stream identified!");
+        videoRtp = true;
+    }
+    found = rtpType.find("audio");
+    if (found != std::string::npos)
+    {
+        logdbg("Audio rtp stream identified!");
+        audioRtp = true;
+    }
+    
+    if (gst_pad_is_linked(new_pad) == FALSE)
+    {
+        GstElement* linkElement  = NULL;
+        if (videoRtp)
+             linkElement = (GstElement *) appRef->queue1;
+        else if (audioRtp)
+            linkElement = (GstElement *) appRef->queue2;
+        
+        if ( !linkElement )
+        {
+            logerr() << "Link element is null in rtpbin_pad_added_cb";
+            return;
+        }
+        GstPad* sinkpad = gst_element_get_compatible_pad(linkElement, new_pad, NULL);
+        if (!sinkpad)
+        {
+            logerr() << "unable to get compatible sink element (queue1 or 2) in rtpbin_pad_added_cb, returning" ;
+            return;
+        }
+        if (gst_pad_can_link(new_pad , sinkpad))
+        {
+            logdbg("linkage is possible between this new pad and  the queue1 or queue2");
+        }
+        else
+        {
+            logdbg("linkage is NOT possible between this new pad and  queue1 or queue2!");
+            g_free (dynamic_pad_name);
+             g_free (description);
+            logdbg("--------------------------------------------------------------------------");
+        }
+       logdbg("Setting the sync state of  linkElement");
+        if (gst_element_sync_state_with_parent(linkElement))
+        {
+            logdbg("Making sure tee is in Playing State of its parent!");
+            gst_element_set_state(linkElement, GST_STATE_PLAYING);
+        }
+       logdbg("Now linking dynamic pad to compatable pad in queue1");
+        GstPadLinkReturn linkreturn = gst_pad_link (new_pad, sinkpad);
+        gst_object_unref(GST_OBJECT (sinkpad));
+        if (linkreturn == GST_PAD_LINK_OK)
+        {
+            logdbg("Dynamic Pad now linked, now link the rest of the architecture");
+           if(gst_element_link_pads(appRef->rtpbin, dynamic_pad_name, appRef->rtspsrc, "sink"))
+            {
+                logdbg("--------------------------------------------------------------------------");
+                logdbg("rtpbin linked to rtspsrc linked");
+                logdbg(" Leaving rtspsrc_pad_added_cb");
+                g_free (dynamic_pad_name);
+                g_free (description);
+                logdbg("--------------------------------------------------------------------------");
+                return;
+            }
+            else if(gst_element_link_pads(appRef->rtspsrc, dynamic_pad_name, appRef->queue1, "sink"))
+            {
+                logdbg("--------------------------------------------------------------------------");
+                logdbg("rtspsrc linked to queue1 linked");
+                logdbg(" Leaving rtspsrc_pad_added_cb");
+                g_free (dynamic_pad_name);
+                g_free (description);
+                logdbg("--------------------------------------------------------------------------");
+                return;
+            }
+            else if(gst_element_link_pads(appRef->rtpbin, dynamic_pad_name, appRef->udpsink, "sink"))
+            {
+                logdbg("--------------------------------------------------------------------------");
+                logdbg("Pad for udpsink linked");
+                logdbg(" Leaving rtspsrc_pad_added_cb");
+                g_free (dynamic_pad_name);
+                g_free (description);
+                logdbg("--------------------------------------------------------------------------");
+                return;
+            }
+        }
+        else
+        {
+            logerr() << "unable to link dynamic pad to  compatible sink element (queue1) ";
+        }
+    }
+    else
+    {
+        logerr() << "Dynamic Pad already linked?";
+    }
+    logdbg(" Leaving rtspsrc_pad_added_cb");
+    logdbg("--------------------------------------------------------------------------");
+}
+
+void RtspManager::rtspsrc_pad_removed_cb (GstElement *rtspsrc, GstPad* pad, RtspDataRef appRef)
 {
     logdbg("New pad in rtspsrc removed callback !");
 }
 
-void RtspManager::rtspsrc_no_more_pads_cb(GstElement *rtspsrc, gpointer data)
+void RtspManager::rtspsrc_no_more_pads_cb(GstElement *rtspsrc, RtspDataRef appRef)
 {
      logdbg("No_more_pads in rtspsrc callback !");
 }
 
-
-
-void RtspManager::processMsgType(GstBus *bus, GstMessage* msg, CustomData* pdata)
+void RtspManager::processMsgType(GstBus *bus, GstMessage* msg, RtspDataRef appRef)
 {
     std::string url;
+    // gstreamer is a C lib hence the C pointers
     if (msg == NULL)
     {
        logerr() << "Msg is NULL in RtspManagerprocessMsgTyped fakesink to the pipeline!";
@@ -575,16 +805,16 @@ void RtspManager::processMsgType(GstBus *bus, GstMessage* msg, CustomData* pdata
         case GST_MESSAGE_EOS: {
             printMsg(msg, " GST_MESSAGE_EOS");
             logdbg ("End of stream\n");
-            if (pdata != NULL)
-            {    
-                g_main_loop_quit ( pdata->main_loop );
-            }
+            g_main_loop_quit ( appRef->main_loop );
             break;
         }
         case GST_MESSAGE_ERROR: {
             printMsg(msg, " GST_MESSAGE_ERROR");
-            pdata->errorHandler.processErrorState(msg);
-            pdata->streamErrorCB((char *)"calling error callback");
+            if (appRef)
+            {
+                appRef->errorHandlerRef->processErrorState(msg);
+                appRef->streamErrorCB((char *)"calling error callback");
+            }
             break;
         }
         case GST_MESSAGE_STATE_CHANGED: {
@@ -625,10 +855,10 @@ void RtspManager::processMsgType(GstBus *bus, GstMessage* msg, CustomData* pdata
             }
             logdbg("Allocating space for the url to pass to the decoder!");
             url = "rtp://127.0.0.1:8000";
-            if (pdata != NULL) 
+            if (appRef)
             {    
                 logdbg("Calling the connected() callback!!!!");
-                 pdata->streamConnectionCB((char *)url.c_str());
+                appRef->streamConnectionCB((char *)url.c_str());
                 logdbg("connected() callback finished?");  
             } else {
                 logdbg("No access to the data structure cannot call the connected() callback!");
@@ -644,13 +874,12 @@ void RtspManager::processMsgType(GstBus *bus, GstMessage* msg, CustomData* pdata
 }
 
 // Called for every message on the bus, passing the customer data as the last parm
-gboolean RtspManager::bus_call (GstBus *bus, GstMessage *msg, gpointer data)
+gboolean RtspManager::bus_call (GstBus *bus, GstMessage *msg, RtspDataRef appRef)
 {
     logdbg("***************************************");
     logdbg("bus call!");
     // This is frequently NULL because messages are called by thew gstreamer framework
-    CustomData* customData = (CustomData*)data;
-    processMsgType( bus, msg, customData);
+    processMsgType( bus, msg, appRef);
     RtspManager::messageCount++;
     logdbg("***************************************");
     return TRUE;

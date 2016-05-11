@@ -23,11 +23,12 @@ public:
     StreamManager& operator=(StreamManager const&)   = delete;
     StreamManager& operator=(StreamManager&&)        = delete;
     // all auth stuff is encripted Base64, no cionnect info is sent in the clear
-    ApiStatus connectToStream(CamParmsEncription& camAuth, 
-                              CallBackFunc  streamStarted,
-                              CallBackFunc  streamError,
-                              StreamType type);
+    ApiStatus connectToStream(CamParmsEncriptionRef camAuthRef,
+                                                CallBackFunc  streamStarted,
+                                                CallBackFunc  streamError,
+                                                StreamType type);
     ApiStatus disconnectStreams(std::string streamID);
+    dispatch_queue_t  queue;
 protected:
     StreamManager();    
     static StreamManagerRef instance;

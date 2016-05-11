@@ -21,12 +21,12 @@ typedef struct _MjpegData{
     GstElement*             multipartdemux = nullptr;
     GstElement*             jpegdec = nullptr;
     GstElement*             ffenc_mpeg4 = nullptr;
-    GstBus*                    bus = nullptr;
-    GstMessage*             msg = nullptr;
-    gchar*                     connectionUr = nullptr;
-    CallBackFunc           streamConnectionCB;
-    CallBackFunc           streamErrorCB;
-    StreamErrorHandler errorHandler;
+    GstBus*                         bus = nullptr;
+    GstMessage*                   msg = nullptr;
+    gchar*                           connectionUr = nullptr;
+    CallBackFunc                 streamConnectionCB;
+    CallBackFunc                 streamErrorCB;
+    StreamErrorHandlerRef  errorHandlerRef;
 }MjpegData;
 
 typedef std::shared_ptr<MjpegData> MjpegDataRef;
@@ -35,12 +35,12 @@ class MjpegManager : public IPStreamManager
 {
 public:
     static  MjpegManagerRef  createNewMjpegManager();
-    virtual ~MjpegManager() = default;
+    virtual ~MjpegManager();
     MjpegManager(MjpegManager const&)                  = delete;    // Copy construct
     MjpegManager(MjpegManager&&)                       = delete;   // Move construct
     MjpegManager& operator=(MjpegManager const&)       = delete;  // Copy assign
     MjpegManager& operator=(MjpegManager&&)            = default;  // Move assign
-    ApiStatus connectToIPCam(CamParmsEncription& value) override;
+    ApiStatus connectToIPCam(CamParmsEncriptionRef value) override;
     virtual ApiStatus testConnection()  override;
     virtual ApiStatus makeElements() override;
     virtual ApiStatus setupPipeLine() override;
@@ -48,17 +48,18 @@ public:
 protected:
     MjpegManager();
     static   MjpegManagerRef instance;
-    MjpegData  data;
+    MjpegDataRef  dataRef;
     virtual ApiStatus  createElements() override;
     virtual ApiStatus  addElementsToBin() override;
+    virtual ApiStatus  linkElements() override;
     virtual ApiStatus  setElementsProperties() override;
     virtual ApiStatus  addCallbacks() override;
     virtual ApiStatus  removeCallbacks() override;
     virtual ApiStatus  cleanUp() override;
     static gboolean bus_call (GstBus *bus, GstMessage *msg, gpointer data);
-    static void processMsgType(GstBus *bus, GstMessage* msg, MjpegData* pdata);
-    static void souphttpsrc_pad_added_cb (GstElement*       souphttsrc, GstPad* pad, MjpegData* data);
-    static void souphttpsrc_pad_removed_cb (GstElement*   souphttpsrc, GstPad* pad, MjpegData *data);
+    static void processMsgType(GstBus *bus, GstMessage* msg, gpointer data);
+    static void souphttpsrc_pad_added_cb (GstElement*       souphttsrc, GstPad* pad, gpointer data);
+    static void souphttpsrc_pad_removed_cb (GstElement*   souphttpsrc, GstPad* pad, gpointer data);
     static void souphttpsrc_no_more_pads_cb(GstElement*  souphttpsrc, gpointer data);
 };
 

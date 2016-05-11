@@ -20,15 +20,16 @@ ApiState(ApiStatus::OK)
 {
 }
 
-ApiStatus  IPStreamManager::assignAuth( CamParmsEncription& camAuth)
+ApiStatus  IPStreamManager::assignAuth( CamParmsEncriptionRef authRef)
 {
-    crypto_cameraGuid = camAuth.getCameraGuid();
-    crypto_userName = camAuth.getUserName();
-    crypto_password = camAuth.getPassword();
-    crypto_host  = camAuth.getHost();
-    crypto_port   = camAuth.getPort();
-    crypto_absPath = camAuth.getAbsPath();
-    crypto_queryParms = camAuth.getQueryParms();
+    authCamRef = authRef;
+    crypto_cameraGuid = authCamRef->getCameraGuid();
+    crypto_userName        = authCamRef->getUserName();
+    crypto_password        = authCamRef->getPassword();
+    crypto_host               = authCamRef->getHost();
+    crypto_port               = authCamRef->getPort();
+    crypto_absPath          = authCamRef->getAbsPath();
+    crypto_queryParms     = authCamRef->getQueryParms();
     ApiState = ApiStatus::OK;
     return  ApiState;
 }

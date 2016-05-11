@@ -9,6 +9,8 @@
 #include "StreamManager.hpp"
 #include "RtspManager.hpp"
 #include "MjpegManager.hpp"
+#include <dispatch/dispatch.h>
+
 
 StreamManagerRef StreamManager::instance   = nullptr;
 VideoDataList StreamManager::streamList = {};
@@ -35,7 +37,7 @@ StreamManagerRef StreamManager::createStreamManager()
 }
 
 StreamManager::StreamManager()
-: ApiState(ApiStatus::OK)
+:  queue(nullptr),  ApiState(ApiStatus::OK)
 {
     logdbg("Entering StreamManager constructor.......");
     logdbg("Exiting StreaManager constructor.......");
@@ -49,19 +51,24 @@ StreamManager::~StreamManager()
         it = streamList.erase(it);
     }       
     streamList.clear();
+    instance.reset();
     instance   = nullptr;
+    dispatch_release(queue);
+    queue = nullptr;
     logdbg("Exiting StreaManager destructor.......");
 }
 
-ApiStatus StreamManager::connectToStream(CamParmsEncription& camAuth, 
+ApiStatus StreamManager::connectToStream(CamParmsEncriptionRef camAuthRef,
                                          CallBackFunc streamStarted,
                                          CallBackFunc streamError,
                                          StreamType type)
 {
     logdbg("Entering StreamManager::connectToH264Stream.......");
+    queue = dispatch_queue_create("com.evaautomation.StreamManager",      DISPATCH_QUEUE_SERIAL);
+    dispatch_async(queue, ^{
     // used to id the stream based on cmaera guid
     RtspManagerRef          rtspManagerRef = RtspManager::createNewRtspManager();
-    std::string cameraGuid = camAuth.base64_decode(camAuth.getCameraGuid());
+    std::string cameraGuid = camAuthRef->base64_decode(camAuthRef->getCameraGuid());
     rtspManagerRef->setName(cameraGuid);
     MjpegManagerRef   mjpegManagerRef = MjpegManager::createNewMjpegManager();
     switch (type )
@@ -71,7 +78,7 @@ ApiStatus StreamManager::connectToStream(CamParmsEncription& camAuth,
             rtspManagerRef->activateStream(false);
             mjpegManagerRef->validStreamMethod(true);
             mjpegManagerRef->activateStream(true);
-            ApiState = mjpegManagerRef->connectToIPCam(camAuth);
+            ApiState = mjpegManagerRef->connectToIPCam(camAuthRef);
             if (ApiState == ApiStatus::OK)
             {
                 VideoStreamPair pair = std::make_pair(rtspManagerRef, mjpegManagerRef );
@@ -81,7 +88,7 @@ ApiStatus StreamManager::connectToStream(CamParmsEncription& camAuth,
         case StreamType::H264_ONLY:
             rtspManagerRef->validStreamMethod(true);
             rtspManagerRef->activateStream(true);
-            ApiState = rtspManagerRef->connectToIPCam(camAuth);
+            ApiState = rtspManagerRef->connectToIPCam(camAuthRef);
             if (ApiState == ApiStatus::OK)
             {
                 VideoStreamPair pair = std::make_pair(rtspManagerRef, mjpegManagerRef );
@@ -91,12 +98,13 @@ ApiStatus StreamManager::connectToStream(CamParmsEncription& camAuth,
             mjpegManagerRef->activateStream(false);
          break;
         case StreamType::H264_AND_MJPEG:
+       
             rtspManagerRef->validStreamMethod(true);
             rtspManagerRef->activateStream(true); // this is the prime stream
             // old school programmiong with no exceptions, check every return
             rtspManagerRef->addConnectionCallback(streamStarted);
             rtspManagerRef->addErrorCallback(streamError);
-            ApiState = rtspManagerRef->connectToIPCam(camAuth);
+            ApiState = rtspManagerRef->connectToIPCam(camAuthRef);
             if (ApiState != ApiStatus::OK)
             {
                 rtspManagerRef->fatalApiState("Unable to Connect to RTSP/H264 Cam");
@@ -121,11 +129,13 @@ ApiStatus StreamManager::connectToStream(CamParmsEncription& camAuth,
             }
             
             VideoStreamPair pair = std::make_pair(rtspManagerRef, mjpegManagerRef );
-             streamList.emplace_back(pair);
+            streamList.emplace_back(pair);
             mjpegManagerRef->validStreamMethod(true);
             mjpegManagerRef->activateStream(false); // possible to switch to MJPEG but not by default
+    
             break;
     }
+   });
    logdbg("Leaving StreamManager::connectToH264Stream.......");
     return ApiState;
 }   

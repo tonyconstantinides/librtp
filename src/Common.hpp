@@ -26,9 +26,10 @@
 #ifdef HAVE_CONFIG_H
 # include <config.h>
 #endif
+#include <dispatch/dispatch.h>
 
 #define USER_AGENT "Eva Automartion Cake"
-#define RTSP_LATENCY 0
+#define RTSP_LATENCY 2
 #define RTSP_BUFFER_MODE 0
 #define RTSP_RTP_BLOCKSIZE 50000
 
@@ -37,12 +38,16 @@ class RtspManager;
 class MjpegManager;
 class CamParmsEncription;
 class IPStreamManager;
+class StreamErrorHandler;
+
 
 enum   class ApiStatus {OK, CLEAR, FAIL, FATAL_ERROR };
 enum   class StreamType {MJPEG_ONLY, H264_ONLY, H264_AND_MJPEG};
 typedef std::shared_ptr<StreamManager> StreamManagerRef;
 typedef std::shared_ptr<RtspManager> RtspManagerRef;
 typedef std::shared_ptr<MjpegManager>  MjpegManagerRef;
+typedef std::shared_ptr<CamParmsEncription> CamParmsEncriptionRef;
+typedef std::shared_ptr<StreamErrorHandler> StreamErrorHandlerRef;
 typedef std::function<void(char*)> CallBackFunc;
 
 typedef unsigned char             BYTE;
