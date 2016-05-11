@@ -317,7 +317,7 @@ ApiStatus RtspManager::createElements()
     }
     else
     {
-        return fatalApiState("queue2 element could not be created!");
+        return fatalApiState("queue1 element could not be created!");
     }
     
     if (dataRef->rtph264depay)
@@ -331,7 +331,7 @@ ApiStatus RtspManager::createElements()
     
     if (dataRef->queue2)
     {
-        logdbg("queue element created");
+        logdbg("queue2 element created");
     }
     else
     {
@@ -457,7 +457,7 @@ ApiStatus RtspManager::addElementsToBin()
     
     if (gst_bin_add(GST_BIN(dataRef->rtpbin), dataRef->queue2))
     {
-        logdbg("queue2  added rto tpbin!");
+        logdbg("queue2 added to tpbin!");
     }
     else
     {
@@ -817,8 +817,19 @@ void RtspManager::processMsgType(GstBus *bus, GstMessage* msg, RtspDataRef appRe
             }
             break;
         }
+        case GST_MESSAGE_WARNING:
+            printMsg(msg, "GST_MESSAGE_WARNING");
+            break;
+        case   GST_MESSAGE_INFO:
+            printMsg(msg, "GST_MESSAGE_INFO");
+            break;
+        case GST_MESSAGE_TAG:
+            printMsg(msg, "GST_MESSAGE_TAG");
+            break;
+        case GST_MESSAGE_BUFFERING:
+            printMsg(msg, "GST_MESSAGE_BUFFERING");
+            break;
         case GST_MESSAGE_STATE_CHANGED: {
-            printMsg(msg, " GST_MESSAGE_STATE_CHANGED");
             /* We are only interested in state-changed messages from the pipeline */
             const gchar* srcObj    = GST_MESSAGE_SRC_NAME(msg);
             if (std::strcmp(srcObj, "pipeline") == 0)
@@ -832,27 +843,80 @@ void RtspManager::processMsgType(GstBus *bus, GstMessage* msg, RtspDataRef appRe
             }
             break;
         }
-        case GST_MESSAGE_PROGRESS:
-            printMsg(msg, "GST_MESSAGE_PROGRESS");
+        case GST_MESSAGE_STATE_DIRTY:
+            printMsg(msg, "GST_MESSAGE_STATE_DIRTY");
+            break;
+        case GST_MESSAGE_STEP_DONE:
+            printMsg(msg, "GST_MESSAGE_STEP_DONE");
+            break;
+        case GST_MESSAGE_CLOCK_PROVIDE:
+            printMsg(msg, "GST_MESSAGE_CLOCK_PROVIDE");
+            break;
+        case GST_MESSAGE_CLOCK_LOST:
+            printMsg(msg, "GST_MESSAGE_CLOCK_LOST");
             break;
         case GST_MESSAGE_NEW_CLOCK:
             printMsg(msg, "GST_MESSAGE_NEW_CLOCK");
             break;
+        case GST_MESSAGE_STRUCTURE_CHANGE:
+            printMsg(msg, "GST_MESSAGE_STRUCTURE_CHANGE");
+            break;
         case GST_MESSAGE_STREAM_STATUS:
             printMsg(msg, "GST_MESSAGE_STREAM_STATUS");
+            break;
+        case GST_MESSAGE_APPLICATION:
+            printMsg(msg, "GST_MESSAGE_APPLICATION");
             break;
         case GST_MESSAGE_ELEMENT:
             printMsg(msg, "GST_MESSAGE_ELEMENT");
             break;
+        case GST_MESSAGE_SEGMENT_START:
+            printMsg(msg, "GST_MESSAGE_SEGMENT_START");
+            break;
+        case GST_MESSAGE_SEGMENT_DONE:
+            printMsg(msg, "GST_MESSAGE_SEGMENT_DONE");
+            break;
+        case GST_MESSAGE_DURATION_CHANGED:
+            printMsg(msg, "GST_MESSAGE_DURATION_CHANGED");
+            break;
+        case GST_MESSAGE_LATENCY:
+            printMsg(msg, "GST_MESSAGE_LATENCY");
+            break;
+        case GST_MESSAGE_ASYNC_START:
+            printMsg(msg, "GST_MESSAGE_ASYNC_START");
+            break;
+        case GST_MESSAGE_ASYNC_DONE:
+            printMsg(msg, "GST_MESSAGE_ASYNC_DONE");
+            break;
+        case GST_MESSAGE_REQUEST_STATE:
+            printMsg(msg, "GST_MESSAGE_REQUEST_STATE");
+            break;
+        case GST_MESSAGE_STEP_START:
+            printMsg(msg, "GST_MESSAGE_STEP_START");
+            break;
+        case GST_MESSAGE_QOS:
+            printMsg(msg, "GST_MESSAGE_QOS");
+            break;
+        case GST_MESSAGE_PROGRESS:
+            //printMsg(msg, "GST_MESSAGE_PROGRESS");
+            break;
+        case GST_MESSAGE_TOC:
+            printMsg(msg, "GST_MESSAGE_TOC");
+            break;
+        case GST_MESSAGE_RESET_TIME:
+            printMsg(msg, "GST_MESSAGE_RESET_TIME");
+            break;
         case GST_MESSAGE_STREAM_START:
             printMsg(msg, "GST_MESSAGE_STREAM_START");
-                        logdbg ("GST_MESSAGE_ASYNC_DONE: removing the bus watch!");
+          /*
+            logdbg ("GST_MESSAGE_STREAM_START: removing the bus watch!");
             // remove the watch as you not interested in anything beyond this
             if (bus != NULL)
             {    
                 logdbg("Removing the bus signal watch !");
                 gst_bus_remove_signal_watch(bus);
             }
+       */
             logdbg("Allocating space for the url to pass to the decoder!");
             url = "rtp://127.0.0.1:8000";
             if (appRef)
@@ -864,8 +928,23 @@ void RtspManager::processMsgType(GstBus *bus, GstMessage* msg, RtspDataRef appRe
                 logdbg("No access to the data structure cannot call the connected() callback!");
             }
             break;
-        case GST_MESSAGE_ASYNC_DONE:
-            printMsg(msg, "GST_MESSAGE_ASYNC_DONE");
+        case GST_MESSAGE_NEED_CONTEXT:
+            printMsg(msg, "GST_MESSAGE_NEED_CONTEXT");
+            break;
+        case GST_MESSAGE_HAVE_CONTEXT:
+              printMsg(msg, "GST_MESSAGE_HAVE_CONTEXT");
+            break;
+        case GST_MESSAGE_EXTENDED:
+            printMsg(msg, "GST_MESSAGE_EXTENDED");
+            break;
+        case GST_MESSAGE_DEVICE_ADDED:
+            printMsg(msg, "GST_MESSAGE_DEVICE_ADDED");
+            break;
+        case GST_MESSAGE_DEVICE_REMOVED:
+            printMsg(msg, "GST_MESSAGE_DEVICE_REMOVED");
+            break;
+        case GST_MESSAGE_ANY:
+            printMsg(msg, "GST_MESSAGE_ANY");
             break;
         default:
             logerr() << "RtspManager::Error, something wrong should never processed this unknown messge!";
