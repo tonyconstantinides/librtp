@@ -11,7 +11,7 @@
 #include "Common.hpp"
 #include "IPStreamManager.hpp"
 #include "CamParamsEncryption.hpp"
-#include "StreamErrorhandler.hpp"
+#include "StreamErrorHandler.hpp"
 
 // Structure to contain all our information, so we can pass it around
 // must raw pointers as the underlying API is C-based
