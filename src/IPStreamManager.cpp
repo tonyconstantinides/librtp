@@ -3,11 +3,11 @@
 //  evartp
 //
 //  Created by Tony Constantinides on 4/25/16.
-//  Copyright © 2016 EVA Automation, Inc. All rights reserved.
+//  Copyright © 2016 Bowers & Wilkins. All rights reserved.
 //
 
 #include "IPStreamManager.hpp"
-#include "CamParmsEncription.hpp"
+#include "CamParamsEncryption.hpp"
 
 short IPStreamManager::messageCount = 0;
 
@@ -20,7 +20,7 @@ ApiState(ApiStatus::OK)
 {
 }
 
-ApiStatus  IPStreamManager::assignAuth( CamParmsEncriptionRef authRef)
+ApiStatus  IPStreamManager::assignAuth( CamParamsEncryptionRef authRef)
 {
     authCamRef = authRef;
     crypto_cameraGuid = authCamRef->getCameraGuid();

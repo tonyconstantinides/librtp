@@ -10,7 +10,7 @@
 #define MjpegManager_hpp
 #include "Common.hpp"
 #include "IPStreamManager.hpp"
-#include "CamParmsEncription.hpp"
+#include "CamParamsEncryption.hpp"
 
 typedef struct _MjpegData{
     GMainLoop*              main_loop = nullptr;
@@ -40,7 +40,7 @@ public:
     MjpegManager(MjpegManager&&)                       = delete;   // Move construct
     MjpegManager& operator=(MjpegManager const&)       = delete;  // Copy assign
     MjpegManager& operator=(MjpegManager&&)            = default;  // Move assign
-    ApiStatus connectToIPCam(CamParmsEncriptionRef value) override;
+    ApiStatus connectToIPCam(CamParamsEncryptionRef value) override;
     virtual ApiStatus testConnection()  override;
     virtual ApiStatus makeElements() override;
     virtual ApiStatus setupPipeLine() override;

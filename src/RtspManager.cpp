@@ -1,7 +1,15 @@
+//
+//  RtspManager.cpp
+//  evartp
+//
+//  Created by Tony Constantinides on 4/21/16.
+//  Copyright © 2016 Bowers & Wilkins. All rights reserved.
+//
+
 #include <foundation/foundation.hpp>
 #include "RtspManager.hpp"
 #include "Common.hpp"
-#include "CamParmsEncription.hpp"
+#include "CamParamsEncryption.hpp"
 
 using namespace Jetpack::Foundation;
 RtspManagerRef RtspManager::instance = nullptr;
@@ -49,7 +57,7 @@ RtspManagerRef RtspManager::createNewRtspManager()
     return instance;
 }
 
-ApiStatus RtspManager::connectToIPCam( CamParmsEncriptionRef camAuthRef)
+ApiStatus RtspManager::connectToIPCam( CamParamsEncryptionRef camAuthRef)
 {
     logdbg("***************************************");
     logdbg("Entering connectToIPCam.......");

@@ -10,7 +10,7 @@
 #define RtspManager_hpp
 #include "Common.hpp"
 #include "IPStreamManager.hpp"
-#include "CamParmsEncription.hpp"
+#include "CamParamsEncryption.hpp"
 #include "StreamErrorhandler.hpp"
 
 // Structure to contain all our information, so we can pass it around
@@ -56,7 +56,7 @@ public:
     // the structure containes base64 encoded parms
     void addConnectionCallback(CallBackFunc   connectedCallBack) { dataRef->streamConnectionCB = connectedCallBack; }
     void addErrorCallback(CallBackFunc streamErrorCallback)  {     dataRef->streamErrorCB = streamErrorCallback; }
-    virtual ApiStatus connectToIPCam(CamParmsEncriptionRef camAuthRef) override;
+    virtual ApiStatus connectToIPCam(CamParamsEncryptionRef camAuthRef) override;
     virtual ApiStatus  testConnection()  override;
     virtual ApiStatus makeElements() 	 override;
     virtual ApiStatus setupPipeLine()    override;

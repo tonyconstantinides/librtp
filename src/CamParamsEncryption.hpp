@@ -1,13 +1,13 @@
 	//
-//  CamParmsEncription.hpp
+//  CamParamsEncryption_hpp
 //  evartp
 //
 //  Created by Tony Constantinides on 4/19/16.
 //  Copyright © 2016 EVA Automation, Inc. All rights reserved.
 //
 
-#ifndef CamParmsEncription_hpp
-#define CamParmsEncription_hpp
+#ifndef CamParamsEncryption_hpp
+#define CamParamsEncryption_hpp
 
 #include <string>
 #include <vector>
@@ -15,11 +15,11 @@
 #include <cstdint>
 #include "Common.hpp"
 
-class CamParmsEncription
+class CamParamsEncryption
 {
 public:
-    CamParmsEncription() = default;
-    virtual ~CamParmsEncription() = default;
+    CamParamsEncryption() = default;
+    virtual ~CamParamsEncryption() = default;
     
     std::string base64_encode(BYTE const* buf, unsigned int bufLen);
     std::string base64_decode(std::string const& encoded_string);

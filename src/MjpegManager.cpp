@@ -3,11 +3,11 @@
 //  evartp
 //
 //  Created by Tony Constantinides on 4/21/16.
-//  Copyright © 2016 EVA Automation, Inc. All rights reserved.
+//  Copyright © 2016 Bowers & Wilkins. All rights reserved.
 //
 #include "MjpegManager.hpp"
 #include "Common.hpp"
-#include "CamParmsEncription.hpp"
+#include "CamParamsEncryption.hpp"
 using namespace Jetpack::Foundation;
 MjpegManagerRef MjpegManager::instance = nullptr;
 
@@ -54,7 +54,7 @@ MjpegManagerRef  MjpegManager::createNewMjpegManager()
     return instance;
 }
 
-ApiStatus MjpegManager::connectToIPCam(CamParmsEncriptionRef camAuthRef)
+ApiStatus MjpegManager::connectToIPCam(CamParamsEncryptionRef camAuthRef)
 {
     logdbg("*******************************************************");
     logdbg("Entering MjpegManager::connectToIPCam()");
@@ -166,7 +166,7 @@ ApiStatus MjpegManager::setElementsProperties()
     // setting properties on rtspsrc
     logdbg("Setting url connection:");
     logdbg(  connection_url.c_str() );
-    CamParmsEncription camAuth;
+    CamParamsEncryption camAuth;
     
     g_object_set( G_OBJECT (dataRef->souphttpsrc),
                  "location",              connection_url.c_str(),

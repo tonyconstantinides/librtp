@@ -29,10 +29,10 @@ public:
     ApiStatus setName(std::string streamName) { name = streamName; return ApiState; }
     ApiStatus  errorApiState( const gchar * msg);
     ApiStatus  fatalApiState( const gchar* msg);
-    ApiStatus   assignAuth( CamParmsEncriptionRef camAuthRef);
+    ApiStatus   assignAuth( CamParamsEncryptionRef camAuthRef);
     static void printMsg(GstMessage* msg, const gchar*  msgType);
  
-    virtual ApiStatus   connectToIPCam(CamParmsEncriptionRef camAuthRef) = 0;
+    virtual ApiStatus   connectToIPCam(CamParamsEncryptionRef camAuthRef) = 0;
     virtual ApiStatus   testConnection() = 0;
     // override in derived class
     virtual ApiStatus makeElements() = 0;
@@ -55,7 +55,7 @@ protected:
     std::string  connection_url;
     ApiStatus    ApiState;
     static  short messageCount;
-    CamParmsEncriptionRef authCamRef;
+    CamParamsEncryptionRef authCamRef;
 
     // sensitive data stored as properties
     class {

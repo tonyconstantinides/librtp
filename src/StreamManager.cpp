@@ -3,14 +3,13 @@
 //  evartp
 //
 //  Created by Tony Constantinides on 4/14/16.
-//  Copyright © 2016 EVA Automation, Inc. All rights reserved.
+//  Copyright © 2016 Bowers & Wilkins. All rights reserved.
 //
 
 #include "StreamManager.hpp"
 #include "RtspManager.hpp"
 #include "MjpegManager.hpp"
 #include <dispatch/dispatch.h>
-
 
 StreamManagerRef StreamManager::instance   = nullptr;
 VideoDataList StreamManager::streamList = {};
@@ -19,7 +18,7 @@ StreamManagerRef StreamManager::createStreamManager()
 {
     logdbg("***************************************");
     logdbg("Entering createStreamManager.......");
-    // only allow once instance  evan if teh client calls it multiple times
+    // only allow oncenstance  evan if teh client calls it multiple times
     if (instance == nullptr && streamList.empty())
     {    
      static dispatch_once_t onceToken;
@@ -58,7 +57,7 @@ StreamManager::~StreamManager()
     logdbg("Exiting StreaManager destructor.......");
 }
 
-ApiStatus StreamManager::connectToStream(CamParmsEncriptionRef camAuthRef,
+ApiStatus StreamManager::connectToStream(CamParamsEncryptionRef camAuthRef,
                                          CallBackFunc streamStarted,
                                          CallBackFunc streamError,
                                          StreamType type)

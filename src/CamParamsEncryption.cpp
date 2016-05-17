@@ -3,10 +3,10 @@
 //  evartp
 //
 //  Created by Tony Constantinides on 4/19/16.
-//  Copyright © 2016 EVA Automation, Inc. All rights reserved.
+//  Copyright © 2016 Bowers & Wilkins. All rights reserved.
 //
 
-#include "CamParmsEncription.hpp"
+#include "CamParamsEncryption.hpp"
 
 static const std::string base64_chars =
 "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
@@ -14,7 +14,7 @@ static const std::string base64_chars =
 "0123456789+/";
 
 
-ApiStatus CamParmsEncription::setCameraGuid(std::string guid)
+ApiStatus CamParamsEncryption::setCameraGuid(std::string guid)
 {
     if (guid == "" || guid.length() == 0)
        return ApiStatus::FAIL;
@@ -22,7 +22,7 @@ ApiStatus CamParmsEncription::setCameraGuid(std::string guid)
     return ApiStatus::OK;
 }
 
-ApiStatus CamParmsEncription::setUserName(std::string username)
+ApiStatus CamParamsEncryption::setUserName(std::string username)
 {
     if (username == "" || username.length() == 0)
         return ApiStatus::FAIL;
@@ -30,7 +30,7 @@ ApiStatus CamParmsEncription::setUserName(std::string username)
     return ApiStatus::OK;
 }
 
-ApiStatus CamParmsEncription::setPassword(std::string password)
+ApiStatus CamParamsEncryption::setPassword(std::string password)
 {
     if (password == "" || password.length() == 0)
         return ApiStatus::FAIL;
@@ -38,7 +38,7 @@ ApiStatus CamParmsEncription::setPassword(std::string password)
     return ApiStatus::OK;
 }
 
-ApiStatus CamParmsEncription::setHost(std::string host)
+ApiStatus CamParamsEncryption::setHost(std::string host)
 {
     if (host == "" || host.length() == 0)
         return ApiStatus::FAIL;
@@ -46,7 +46,7 @@ ApiStatus CamParmsEncription::setHost(std::string host)
     return ApiStatus::OK;
 }
 
-ApiStatus CamParmsEncription::setPort(std::string port)
+ApiStatus CamParamsEncryption::setPort(std::string port)
 {
     if (port == "" || port.length() == 0)
         return ApiStatus::FAIL;
@@ -54,7 +54,7 @@ ApiStatus CamParmsEncription::setPort(std::string port)
     return ApiStatus::OK;
 }
 
-ApiStatus CamParmsEncription::setAbsPath(std::string path)
+ApiStatus CamParamsEncryption::setAbsPath(std::string path)
 {
     if (path == "" || path.length() == 0)
         return ApiStatus::FAIL;
@@ -62,7 +62,7 @@ ApiStatus CamParmsEncription::setAbsPath(std::string path)
     return ApiStatus::OK;
 }
 
-ApiStatus CamParmsEncription::setQueryParms(std::string parms)
+ApiStatus CamParamsEncryption::setQueryParms(std::string parms)
 {
     if (parms == "" || parms.length() == 0)
         return ApiStatus::FAIL;
@@ -70,47 +70,47 @@ ApiStatus CamParmsEncription::setQueryParms(std::string parms)
     return ApiStatus::OK;
 }
 
-std::string  CamParmsEncription::getCameraGuid()
+std::string  CamParamsEncryption::getCameraGuid()
 {
     return cameraGuid;
  }
 
-std::string  CamParmsEncription::getUserName()
+std::string  CamParamsEncryption::getUserName()
 {
     return userName;
 }
 
-std::string  CamParmsEncription::getPassword()
+std::string  CamParamsEncryption::getPassword()
 {
     return password;
 }
 
-std::string  CamParmsEncription::getHost()
+std::string  CamParamsEncryption::getHost()
 {
     return host;
 }			
 
-std::string   CamParmsEncription::getPort()
+std::string   CamParamsEncryption::getPort()
 {
     return port;
 }
 
-std::string  CamParmsEncription::getAbsPath()
+std::string  CamParamsEncryption::getAbsPath()
 {
     return abspath;
 }
 
-std::string  CamParmsEncription::getQueryParms()
+std::string  CamParamsEncryption::getQueryParms()
 {
     return queryParms;
 }
 
-bool CamParmsEncription::is_base64(unsigned char c)
+bool CamParamsEncryption::is_base64(unsigned char c)
 {
     return (isalnum(c) || (c == '+') || (c == '/'));
 }
 
-std::string CamParmsEncription::base64_encode(BYTE const* buf, unsigned int bufLen)
+std::string CamParamsEncryption::base64_encode(BYTE const* buf, unsigned int bufLen)
 {
     std::string ret;
     int i = 0;
@@ -152,7 +152,7 @@ std::string CamParmsEncription::base64_encode(BYTE const* buf, unsigned int bufL
     return ret;
 }
 
-std::string CamParmsEncription::base64_decode(std::string const& encoded_string)
+std::string CamParamsEncryption::base64_decode(std::string const& encoded_string)
 {
     int in_len = encoded_string.size();
     int i = 0;

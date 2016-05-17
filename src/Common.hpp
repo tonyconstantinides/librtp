@@ -36,7 +36,7 @@
 class StreamManager;
 class RtspManager;
 class MjpegManager;
-class CamParmsEncription;
+class CamParamsEncryption;
 class IPStreamManager;
 class StreamErrorHandler;
 
@@ -46,7 +46,7 @@ enum   class StreamType {MJPEG_ONLY, H264_ONLY, H264_AND_MJPEG};
 typedef std::shared_ptr<StreamManager> StreamManagerRef;
 typedef std::shared_ptr<RtspManager> RtspManagerRef;
 typedef std::shared_ptr<MjpegManager>  MjpegManagerRef;
-typedef std::shared_ptr<CamParmsEncription> CamParmsEncriptionRef;
+typedef std::shared_ptr<CamParamsEncryption> CamParamsEncryptionRef;
 typedef std::shared_ptr<StreamErrorHandler> StreamErrorHandlerRef;
 typedef std::function<void(char*)> CallBackFunc;
 
