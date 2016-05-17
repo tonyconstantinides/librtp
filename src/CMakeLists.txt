@@ -8,7 +8,7 @@ list(
     RtspManager.cpp
     MjpegManager.cpp
     StreamManager.cpp
-	CamParmsEncription.cpp
+	CamParamsEncryption.cpp
     StreamErrorHandler.cpp
 )
 
@@ -18,7 +18,7 @@ list(
     RtspManager.hpp
     MjpegManager.hpp
     StreamManager.hpp	
-    CamParmsEncription.hpp
+    CamParamsEncryption.hpp
     StreamErrorHandler.hpp
     Common.hpp
 )
@@ -41,7 +41,7 @@ IF(CURL_FOUND)
   MESSAGE(STATUS "Curl libraries found at: ${CURL_LIBRARIES}")
   MESSAGE(STATUS "Curl includes found at: ${CURL_INCLUDE_DIRS}")
 else()
-  MESSAGE(SEND_ERROR "Could not find cURL on your system")
+  MESSAGE(SEND_ERROR "Could not find Curl on your system")
 ENDIF(CURL_FOUND)
 target_link_libraries(${PROJECT_NAME} ${LIBFOUNDATION} ${LIBGSTREAMER} ${LIBGSTRTSP} ${LIBGLIB} ${LIBGOBJECT} ${LIBGIO}  ${CURL_LIBRARIES})
 
