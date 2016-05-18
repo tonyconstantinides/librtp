@@ -327,8 +327,13 @@ void MjpegManager::processMsgType(GstBus *bus, GstMessage* msg, gpointer data)
         }
         case GST_MESSAGE_ERROR: {
             printMsg(msg, " GST_MESSAGE_ERROR");
+            pdata->errorHandlerRef->errorMsg = "";
+            pdata->errorHandlerRef->category = ErrorCategoryDetected::UNKNOWN;
+            pdata->errorHandlerRef->reported  = ErrorCategoryReported::CLEAR;
             pdata->errorHandlerRef->processErrorState(msg);
-            pdata->streamErrorCB((char *)"calling error callback");
+            pdata->streamErrorCB(   pdata->errorHandlerRef->category ,
+                                                    pdata->errorHandlerRef->reported ,
+                                                    pdata->errorHandlerRef->errorMsg);
             break;
         }
         case GST_MESSAGE_STATE_CHANGED: {

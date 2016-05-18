@@ -58,8 +58,8 @@ StreamManager::~StreamManager()
 }
 
 ApiStatus StreamManager::connectToStream(CamParamsEncryptionRef camAuthRef,
-                                         CallBackFunc streamStarted,
-                                         CallBackFunc streamError,
+                                         ConnectedCallBackFunc streamStarted,
+                                         ErrorCallBackFunc    streamError,
                                          StreamType type)
 {
     logdbg("Entering StreamManager::connectToH264Stream.......");
