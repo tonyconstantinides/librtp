@@ -6,6 +6,6 @@ project(evartp)
 
 add_subdirectory(src)
 
-set_target_properties(${PROJECT_NAME} PROPERTIES COMPILE_FLAGS "-Wall -Werror -Wno-unknown-pragmas -Wno-format")
+set_target_properties(${PROJECT_NAME} PROPERTIES COMPILE_FLAGS "-Wall -Werror -Wno-unknown-pragmas -Wno-format -Wno-unused-variable")
 set_target_properties(${PROJECT_NAME} PROPERTIES CXX_STANDARD 11)
 
