@@ -21,6 +21,7 @@ list(
     CamParamsEncryption.hpp
     StreamErrorHandler.hpp
     Common.hpp
+    CamNotificationDefs.hpp
 )
 
 add_library(${PROJECT_NAME} SHARED ${SOURCE_FILES})
