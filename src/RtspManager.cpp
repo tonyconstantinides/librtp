@@ -11,7 +11,7 @@
 #include "Common.hpp"
 #include "CamParamsEncryption.hpp"
 
-using namespace Jetpack::Foundation;
+
 RtspManagerRef RtspManager::instance = nullptr;
 
 RtspManager::RtspManager()
@@ -671,7 +671,8 @@ void RtspManager::rtspsrc_pad_added_cb (GstElement* rtspsrc, GstPad* new_pad, Rt
         logdbg("New pad direction is a SRC");
     if (direction == GST_PAD_SINK)
         logdbg("New pad direction is a SINK");
-    
+    if (new_pad_type)
+        logdbg("New pad type: " <<  new_pad_type );
     if (gst_pad_is_active(new_pad))
         logdbg("New pad is active");
     else
@@ -820,8 +821,13 @@ void RtspManager::processMsgType(GstBus *bus, GstMessage* msg, RtspDataRef appRe
             printMsg(msg, " GST_MESSAGE_ERROR");
             if (appRef)
             {
+                appRef->errorHandlerRef->errorMsg = "";
+                appRef->errorHandlerRef->category = ErrorCategoryDetected::UNKNOWN;
+                appRef->errorHandlerRef->reported  = ErrorCategoryReported::CLEAR;
                 appRef->errorHandlerRef->processErrorState(msg);
-                appRef->streamErrorCB((char *)"calling error callback");
+                appRef->streamErrorCB(   appRef->errorHandlerRef->category ,
+                                                           appRef->errorHandlerRef->reported ,
+                                                           appRef->errorHandlerRef->errorMsg);
             }
             break;
         }

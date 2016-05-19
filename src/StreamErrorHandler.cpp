@@ -10,6 +10,8 @@
 #include "StreamErrorHandler.hpp"
 #include "Common.hpp"
 
+using namespace Jetpack::Foundation;
+
 ApiStatus StreamErrorHandler::processErrorState(GstMessage* msg )
 {
     gchar  *debug;
@@ -18,17 +20,24 @@ ApiStatus StreamErrorHandler::processErrorState(GstMessage* msg )
     logerr() << "Debugging info: " << debug ;
     logerr() <<  "Error: " << error->message;
     logerr() << "From Element: " << GST_OBJECT_NAME (msg->src);
+     Notification::UserInfo info;
+  
     // process the error
     // This code is a template for more sophisticated error handling
     // check the domain
     if (GST_CORE_ERROR ==  error->domain)
     {
         logerr() << "CORE Error detected!";
-    
+        category  = ErrorCategoryDetected::CORE;
+        reported  = ErrorCategoryReported::MISC_ERROR;
+        errorMsg  = "Internal error, incorrect build issue";
     } else if (GST_STREAM_ERROR == error->domain)
     {
         logerr() << "STREAM ERROR category detected!";
-    
+        category  = ErrorCategoryDetected::STREAM;
+        reported =  ErrorCategoryReported::STREAM_STOPPED;
+        errorMsg =   error->message;
+        
         if (g_error_matches(error, GST_STREAM_ERROR,  GST_STREAM_ERROR_FAILED))
         {
             logerr() << "Stream Error Failed detected!";
@@ -62,15 +71,22 @@ ApiStatus StreamErrorHandler::processErrorState(GstMessage* msg )
         }
     } else if (GST_LIBRARY_ERROR == error->domain)
     {
-         logerr() << "LIBRARY Error rcategory detected!";
-
+        logerr() << "LIBRARY Error rcategory detected!";
+        category  = ErrorCategoryDetected::LIBRARY;
+        reported      = ErrorCategoryReported::MISC_ERROR;
+         errorMsg =   error->message;
     } else if (GST_RESOURCE_ERROR == error->domain)
     {
-        logerr() << "RESOURCE Error category detected!";
+         logerr() << "RESOURCE Error category detected!";
+         category  = ErrorCategoryDetected::RESOURCE;
+         reported      = ErrorCategoryReported::MISC_ERROR;
+         errorMsg =   error->message;
+        
         if (g_error_matches(error, GST_RESOURCE_ERROR, GST_RESOURCE_ERROR_NOT_AUTHORIZED))
         {
          logerr() << "Authorization error to the IP Cam";
-        } 
+           reported      = ErrorCategoryReported::AUTH_FAILED;
+        }
         else if (g_error_matches(error, GST_RESOURCE_ERROR, GST_RESOURCE_ERROR_BUSY))
         {
             logerr() << "Cam is too busy to connect!";
@@ -78,6 +94,7 @@ ApiStatus StreamErrorHandler::processErrorState(GstMessage* msg )
         else if (g_error_matches(error, GST_RESOURCE_ERROR, GST_RESOURCE_ERROR_OPEN_READ))
         {
             logerr() << "Unable to open the cam for reading";
+            reported      = ErrorCategoryReported::AUTH_FAILED;
         }
         else if (g_error_matches(error,GST_RESOURCE_ERROR,  GST_RESOURCE_ERROR_OPEN_READ_WRITE))
         {

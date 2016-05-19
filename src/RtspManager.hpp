@@ -16,29 +16,29 @@
 // Structure to contain all our information, so we can pass it around
 // must raw pointers as the underlying API is C-based
 typedef struct _Data{
-    gboolean           connected = false;
-    GMainLoop*    main_loop = nullptr;
-    GstContext*     context   = nullptr;
+    gboolean                  connected = false;
+    GMainLoop*               main_loop = nullptr;
+    GstContext*             context   = nullptr;
     GstElement*             pipeline  = nullptr;
-    GstElement*            rtpbin   = nullptr;
-    GstElement*            rtspsrc   = nullptr;
-    GstElement*         queue1     = nullptr;
-    GstElement*           rtph264depay = nullptr;
-    GstElement*         queue2     = nullptr;
-    GstElement*         mpegtsmux    = nullptr;
-    GstElement*         rtpmp2tpay       = nullptr;
-    GstElement*            udpsink             = nullptr;
-    GstBus*                   bus                    = nullptr;
-    GstMessage*             msg                  = nullptr;
-    GstRTSPConnection* connection       = nullptr;
-    GstRTSPUrl*        url                     = nullptr;
-    GSocket*           writeSocket      = nullptr;
-    GSocket*           readSocket       = nullptr;
-    GstRTSPWatch*      rtspWatch        = nullptr;
-    gchar*                      connectionUrl      = nullptr;
-    CallBackFunc                   streamConnectionCB;
-    CallBackFunc                   streamErrorCB;
-    StreamErrorHandlerRef    errorHandlerRef;
+    GstElement*             rtpbin   = nullptr;
+    GstElement*             rtspsrc   = nullptr;
+    GstElement*             queue1     = nullptr;
+    GstElement*             rtph264depay = nullptr;
+    GstElement*             queue2     = nullptr;
+    GstElement*             mpegtsmux    = nullptr;
+    GstElement*             rtpmp2tpay       = nullptr;
+    GstElement*             udpsink             = nullptr;
+    GstBus*                      bus                    = nullptr;
+    GstMessage*              msg                  = nullptr;
+    GstRTSPConnection*  connection       = nullptr;
+    GstRTSPUrl*                 url                     = nullptr;
+    GSocket*                        writeSocket      = nullptr;
+    GSocket*                        readSocket       = nullptr;
+    GstRTSPWatch*             rtspWatch        = nullptr;
+    gchar*                             connectionUrl      = nullptr;
+    ConnectedCallBackFunc    streamConnectionCB;
+    ErrorCallBackFunc             streamErrorCB;
+    StreamErrorHandlerRef     errorHandlerRef;
 }RtspData;
 
 typedef std::shared_ptr<RtspData> RtspDataRef;
@@ -54,8 +54,8 @@ public:
     RtspManager& operator=(RtspManager&&)                 = default;  // Move assign
 
     // the structure containes base64 encoded parms
-    void addConnectionCallback(CallBackFunc   connectedCallBack) { dataRef->streamConnectionCB = connectedCallBack; }
-    void addErrorCallback(CallBackFunc streamErrorCallback)  {     dataRef->streamErrorCB = streamErrorCallback; }
+    void addConnectionCallback(ConnectedCallBackFunc   connectedCallBack) { dataRef->streamConnectionCB = connectedCallBack; }
+    void addErrorCallback(ErrorCallBackFunc streamErrorCallback)  {     dataRef->streamErrorCB = streamErrorCallback; }
     virtual ApiStatus connectToIPCam(CamParamsEncryptionRef camAuthRef) override;
     virtual ApiStatus  testConnection()  override;
     virtual ApiStatus makeElements() 	 override;

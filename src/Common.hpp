@@ -28,6 +28,11 @@
 #endif
 #include <dispatch/dispatch.h>
 
+enum  class ApiStatus {OK, CLEAR, FAIL, FATAL_ERROR };
+enum  class StreamType {MJPEG_ONLY, H264_ONLY, H264_AND_MJPEG};
+enum  class ErrorCategoryDetected {  UNKNOWN, CORE,  STREAM,  LIBRARY,  RESOURCE};
+enum  class ErrorCategoryReported { CLEAR, CAM_DISCOVERY_FAILED, AUTH_FAILED, STREAM_STOPPED, MISC_ERROR};
+
 #define USER_AGENT "Eva Automartion Cake"
 #define RTSP_LATENCY 2
 #define RTSP_BUFFER_MODE 0
@@ -40,15 +45,13 @@ class CamParamsEncryption;
 class IPStreamManager;
 class StreamErrorHandler;
 
-
-enum   class ApiStatus {OK, CLEAR, FAIL, FATAL_ERROR };
-enum   class StreamType {MJPEG_ONLY, H264_ONLY, H264_AND_MJPEG};
 typedef std::shared_ptr<StreamManager> StreamManagerRef;
 typedef std::shared_ptr<RtspManager> RtspManagerRef;
 typedef std::shared_ptr<MjpegManager>  MjpegManagerRef;
 typedef std::shared_ptr<CamParamsEncryption> CamParamsEncryptionRef;
 typedef std::shared_ptr<StreamErrorHandler> StreamErrorHandlerRef;
-typedef std::function<void(char*)> CallBackFunc;
+typedef std::function<void(char*)> ConnectedCallBackFunc;
+typedef std::function<void(ErrorCategoryDetected, ErrorCategoryReported,  std::string  )>      ErrorCallBackFunc;
 
 typedef unsigned char             BYTE;
 typedef std::map<std::string, std::string>  MapKeyValues;
