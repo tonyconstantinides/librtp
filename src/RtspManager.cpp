@@ -64,6 +64,7 @@ ApiStatus RtspManager::connectToIPCam( CamParamsEncryptionRef camAuthRef)
     GstRTSPResult result;
     GstRTSPAuthMethod method = GST_RTSP_AUTH_DIGEST;
     assignAuth(camAuthRef);
+    cameraGuid =   authCamRef->base64_decode(crypto_cameraGuid ).c_str();
     connection_info.user        = strdup(camAuthRef->base64_decode(crypto_userName).c_str());
     connection_info.passwd     = strdup(camAuthRef->base64_decode(crypto_password).c_str());
     connection_info.host        = strdup(camAuthRef->base64_decode(crypto_host).c_str());
@@ -76,6 +77,7 @@ ApiStatus RtspManager::connectToIPCam( CamParamsEncryptionRef camAuthRef)
     logdbg("Port is: " <<   std::to_string(connection_info.port) );
     logdbg("Additional Path: " << connection_info.abspath );
     logdbg("User name:  "      <<  connection_info.user );
+    logdbg("Camera Guid: "     <<  cameraGuid);
     
     result = gst_rtsp_connection_create(&connection_info, &dataRef->connection);
     if (result != GST_RTSP_OK)
@@ -112,10 +114,16 @@ ApiStatus RtspManager::connectToIPCam( CamParamsEncryptionRef camAuthRef)
      connection_url.append( std::to_string(connection_info.port) );
      connection_url.append(connection_info.abspath);
      connection_url.append(connection_info.query);
-     logdbg("Setting the connection url");
+    
+    logdbg("Setting the connection url");
     dataRef->connectionUrl =  new  gchar[connection_url.length() + 1];
     std::strncpy( dataRef->connectionUrl ,  connection_url.c_str(), connection_url.length());
     dataRef->connectionUrl[connection_url.length()] = '\0';
+
+    logdbg("Setting the camera guid");
+    dataRef->cameraGuid = new gchar[cameraGuid.length() + 1];
+    std::strncpy( dataRef->cameraGuid, cameraGuid.c_str(), cameraGuid.length());
+    dataRef->cameraGuid[cameraGuid.length()] = '\0';
     
      logdbg(dataRef->connectionUrl);
      logdbg("Connection url set!");
@@ -266,6 +274,12 @@ ApiStatus RtspManager::cleanUp()
         gst_object_unref(dataRef->rtpmp2tpay);
     if (dataRef->udpsink)
         gst_object_unref(dataRef->udpsink);
+    
+    if (dataRef->cameraGuid)
+        g_free( dataRef->cameraGuid);
+     if (dataRef->connectionUrl)
+         g_free(dataRef->connectionUrl);
+    
     // now remove signals
      ApiState =  removeCallbacks();
     free(connection_info.user);
@@ -273,6 +287,7 @@ ApiStatus RtspManager::cleanUp()
     free(connection_info.host);
     free(connection_info.abspath);
     free(connection_info.query);
+    
     return ApiState;
 }
 
@@ -827,6 +842,7 @@ void RtspManager::processMsgType(GstBus *bus, GstMessage* msg, RtspDataRef appRe
                 appRef->errorHandlerRef->processErrorState(msg);
                 appRef->streamErrorCB(   appRef->errorHandlerRef->category ,
                                                            appRef->errorHandlerRef->reported ,
+                                                           appRef->cameraGuid,
                                                            appRef->errorHandlerRef->errorMsg);
             }
             break;
@@ -936,7 +952,7 @@ void RtspManager::processMsgType(GstBus *bus, GstMessage* msg, RtspDataRef appRe
             if (appRef)
             {    
                 logdbg("Calling the connected() callback!!!!");
-                appRef->streamConnectionCB((char *)url.c_str());
+                appRef->streamConnectionCB( appRef->cameraGuid,  url ,  "connected");
                 logdbg("connected() callback finished?");  
             } else {
                 logdbg("No access to the data structure cannot call the connected() callback!");

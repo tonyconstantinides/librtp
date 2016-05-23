@@ -35,7 +35,8 @@ typedef struct _Data{
     GSocket*                        writeSocket      = nullptr;
     GSocket*                        readSocket       = nullptr;
     GstRTSPWatch*             rtspWatch        = nullptr;
-    gchar*                             connectionUrl      = nullptr;
+    gchar*                               connectionUrl    = nullptr;
+    gchar*                                 cameraGuid      = nullptr;
     ConnectedCallBackFunc    streamConnectionCB;
     ErrorCallBackFunc             streamErrorCB;
     StreamErrorHandlerRef     errorHandlerRef;

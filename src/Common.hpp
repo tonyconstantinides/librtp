@@ -50,8 +50,8 @@ typedef std::shared_ptr<RtspManager> RtspManagerRef;
 typedef std::shared_ptr<MjpegManager>  MjpegManagerRef;
 typedef std::shared_ptr<CamParamsEncryption> CamParamsEncryptionRef;
 typedef std::shared_ptr<StreamErrorHandler> StreamErrorHandlerRef;
-typedef std::function<void(char*)> ConnectedCallBackFunc;
-typedef std::function<void(ErrorCategoryDetected, ErrorCategoryReported,  std::string  )>      ErrorCallBackFunc;
+typedef std::function<void(std::string, std::string, std::string)> ConnectedCallBackFunc;
+typedef std::function<void(ErrorCategoryDetected, ErrorCategoryReported,  std::string, std::string  )>      ErrorCallBackFunc;
 
 typedef unsigned char             BYTE;
 typedef std::map<std::string, std::string>  MapKeyValues;

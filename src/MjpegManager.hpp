@@ -24,6 +24,7 @@ typedef struct _MjpegData{
     GstBus*                   bus = nullptr;
     GstMessage*          msg = nullptr;
     gchar*                     connectionUr = nullptr;
+    gchar*                     cameraGuid = nullptr;
     ConnectedCallBackFunc     streamConnectionCB;
     ErrorCallBackFunc              streamErrorCB;
     StreamErrorHandlerRef     errorHandlerRef;

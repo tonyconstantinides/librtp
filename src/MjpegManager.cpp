@@ -59,7 +59,8 @@ ApiStatus MjpegManager::connectToIPCam(CamParamsEncryptionRef camAuthRef)
     logdbg("*******************************************************");
     logdbg("Entering MjpegManager::connectToIPCam()");
     // this assign it to shared ptr authCamRef
-    assignAuth(camAuthRef);
+    assignAuth(camAuthRef);\
+    cameraGuid =   authCamRef->base64_decode(crypto_cameraGuid ).c_str();
     
     connection_url = "http://";
     connection_url.append( authCamRef->base64_decode(crypto_host).c_str() );
@@ -77,6 +78,13 @@ ApiStatus MjpegManager::connectToIPCam(CamParamsEncryptionRef camAuthRef)
     logdbg("Port is              :   "  <<   authCamRef->base64_decode(crypto_port).c_str() );
     logdbg("Additional Path:   "  <<  authCamRef->base64_decode(crypto_absPath).c_str() );
     logdbg("User name       :   "   <<  authCamRef->base64_decode(crypto_userName).c_str() );
+    logdbg("Camera Guid      :   "  << cameraGuid.c_str());
+    
+    
+    logdbg("Setting the camera guid");
+    dataRef->cameraGuid = new gchar[cameraGuid.length() + 1];
+    std::strncpy( dataRef->cameraGuid, cameraGuid.c_str(), cameraGuid.length());
+    dataRef->cameraGuid[cameraGuid.length()] = '\0';
     
  	ApiState = testConnection();
     logdbg("Leaving MjegManager::connectToIPCam()");
@@ -138,6 +146,7 @@ ApiStatus MjpegManager::startLoop()
     dataRef->main_loop = g_main_loop_new (NULL, FALSE);
     // add a signal on the bus for messages
     dataRef->bus = gst_element_get_bus( dataRef->pipeline);
+    strcpy(dataRef->cameraGuid, cameraGuid.c_str());
     g_signal_connect (dataRef->bus, "message",  G_CALLBACK (MjpegManager::bus_call), &dataRef);
     gst_bus_add_signal_watch_full (dataRef->bus, G_PRIORITY_DEFAULT);
     dataRef->msg = gst_bus_pop_filtered (dataRef->bus, GST_MESSAGE_ANY);
@@ -230,6 +239,8 @@ ApiStatus  MjpegManager::cleanUp()
         gst_object_unref(dataRef->main_loop);
     if (dataRef->context)
         gst_object_unref(dataRef->context);
+    if (dataRef->cameraGuid)
+        g_free(dataRef->cameraGuid);
     // now remove signals
     ApiState =  removeCallbacks();
     logdbg("Leaving cleanUp.......");
@@ -333,6 +344,7 @@ void MjpegManager::processMsgType(GstBus *bus, GstMessage* msg, gpointer data)
             pdata->errorHandlerRef->processErrorState(msg);
             pdata->streamErrorCB(   pdata->errorHandlerRef->category ,
                                                     pdata->errorHandlerRef->reported ,
+                                                    pdata->cameraGuid,
                                                     pdata->errorHandlerRef->errorMsg);
             break;
         }
@@ -377,7 +389,7 @@ void MjpegManager::processMsgType(GstBus *bus, GstMessage* msg, gpointer data)
             if (pdata != NULL)
             {
                 logdbg("Calling the connected() callback!!!!");
-                pdata->streamConnectionCB((char *)url.c_str());
+                pdata->streamConnectionCB(pdata->cameraGuid  , url, "connected"   );
                 logdbg("connected() callback finished?");
             } else {
                 logdbg("No access to the data structure cannot call the connected() callback!");

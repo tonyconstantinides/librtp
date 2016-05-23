@@ -53,6 +53,7 @@ protected:
     bool         activeStream;
     bool         validStreamingMethod;
     std::string  connection_url;
+    std::string    cameraGuid;
     ApiStatus    ApiState;
     static  short messageCount;
     CamParamsEncryptionRef authCamRef;
