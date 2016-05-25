@@ -6,6 +6,7 @@
 //  Copyright © 2016 Bowers & Wilkins. All rights reserved.
 //
 
+#include "Common.hpp"
 #include "StreamManager.hpp"
 #include "RtspManager.hpp"
 #include "MjpegManager.hpp"
@@ -13,6 +14,13 @@
 
 StreamManagerRef StreamManager::instance   = nullptr;
 VideoDataList StreamManager::streamList = {};
+std::string StreamManager::cameraGuid = "";
+std::string StreamManager::cameraStatus = "";
+std::string StreamManager::cameraErrorMsg = "";
+std::string StreamManager::cakeboxStreamingUrl = "";
+ErrorCategoryDetected StreamManager::category = ErrorCategoryDetected::UNKNOWN;
+ErrorCategoryReported StreamManager::reported = ErrorCategoryReported::CLEAR; 
+
 
 StreamManagerRef StreamManager::createStreamManager()
 {
@@ -107,24 +115,32 @@ ApiStatus StreamManager::connectToStream(CamParamsEncryptionRef camAuthRef,
             if (ApiState != ApiStatus::OK)
             {
                 rtspManagerRef->fatalApiState("Unable to Connect to RTSP/H264 Cam");
+                rtspManagerRef->reportFailedConnection();
+                return;
             }
             
             ApiState = rtspManagerRef->makeElements();
             if (ApiState != ApiStatus::OK)
             {
                 rtspManagerRef->fatalApiState("Unable to RtspManager::makeElements()");
+                rtspManagerRef->reportFailedConnection();
+                return;
             }
             
             ApiState = rtspManagerRef->setupPipeLine();
             if (ApiState != ApiStatus::OK)
             {
                 rtspManagerRef->fatalApiState("Unable to RtspManager::setupPipeLine()");
+                rtspManagerRef->reportFailedConnection();
+                return;
             }
             
             ApiState = rtspManagerRef->startLoop();
             if (ApiState != ApiStatus::OK)
             {
                 rtspManagerRef->fatalApiState("Unable to RtspManager::startLoop()");
+                rtspManagerRef->reportFailedConnection();
+                return;
             }
             
             VideoStreamPair pair = std::make_pair(rtspManagerRef, mjpegManagerRef );
@@ -139,15 +155,18 @@ ApiStatus StreamManager::connectToStream(CamParamsEncryptionRef camAuthRef,
     return ApiState;
 }   
 
-ApiStatus StreamManager::disconnectStreams(std::string streamID)
+ApiStatus StreamManager::disconnectStream(CamParamsEncryptionRef camAuth)
 {
     logdbg("Entering StreamManager::disconnectStream.......");
     for (auto& pair : streamList)
     {
         RtspManagerRef rtsp = pair.first;
         MjpegManagerRef mjpeg = pair.second;
-        rtsp.reset();
-        mjpeg.reset();
+        if (rtsp->isStream(camAuth)) 
+        {    
+            rtsp.reset();
+            mjpeg.reset();
+        }    
     }
     logdbg("Leaving StreamManager::disconnectStream.......");
     return ApiStatus::OK;

@@ -1,4 +1,4 @@
-//
+	//
 //  RtspManager.cpp
 //  evartp
 //
@@ -7,6 +7,7 @@
 //
 
 #include <foundation/foundation.hpp>
+#include "StreamManager.hpp"
 #include "RtspManager.hpp"
 #include "Common.hpp"
 #include "CamParamsEncryption.hpp"
@@ -40,6 +41,16 @@ RtspManager::~RtspManager()
     logdbg("***************************************");
 }
 
+bool RtspManager::isStream(CamParamsEncryptionRef authCamRef)
+{
+    // look at trhe cameraGuids
+   std::string tempGuid =  authCamRef->base64_decode( authCamRef->getCameraGuid() );
+   if (std::strcmp(tempGuid.c_str(), cameraGuid.c_str()) == 0)
+        return true;
+    else
+        return false;
+}
+
 RtspManagerRef RtspManager::createNewRtspManager()
 {
     logdbg("***************************************");
@@ -65,6 +76,9 @@ ApiStatus RtspManager::connectToIPCam( CamParamsEncryptionRef camAuthRef)
     GstRTSPAuthMethod method = GST_RTSP_AUTH_DIGEST;
     assignAuth(camAuthRef);
     cameraGuid =   authCamRef->base64_decode(crypto_cameraGuid ).c_str();
+    cakeStreamingUrl =  "rtp://127.0.0.1:8000";
+    cameraStatus = "connected";
+
     connection_info.user        = strdup(camAuthRef->base64_decode(crypto_userName).c_str());
     connection_info.passwd     = strdup(camAuthRef->base64_decode(crypto_password).c_str());
     connection_info.host        = strdup(camAuthRef->base64_decode(crypto_host).c_str());
@@ -120,14 +134,19 @@ ApiStatus RtspManager::connectToIPCam( CamParamsEncryptionRef camAuthRef)
     std::strncpy( dataRef->connectionUrl ,  connection_url.c_str(), connection_url.length());
     dataRef->connectionUrl[connection_url.length()] = '\0';
 
-    logdbg("Setting the camera guid");
-    dataRef->cameraGuid = new gchar[cameraGuid.length() + 1];
-    std::strncpy( dataRef->cameraGuid, cameraGuid.c_str(), cameraGuid.length());
-    dataRef->cameraGuid[cameraGuid.length()] = '\0';
-    
-     logdbg(dataRef->connectionUrl);
-     logdbg("Connection url set!");
-     ApiState = testConnection();
+    logdbg("----------------------------------------------------------------");
+    logdbg("Setting the camera stuff into a data structure to pass around");
+    dataRef->cameraGuid            = cameraGuid;
+    dataRef->cakeStreamingUrl      = cakeStreamingUrl;
+    dataRef->cameraStatus          = cameraStatus;
+    logdbg("cameraGuid is: "       << dataRef->cameraGuid);
+    logdbg("cakeStreamingUrl is: " << dataRef->cakeStreamingUrl);
+    logdbg("cameraStatus is: "     << dataRef->cameraStatus);
+    logdbg("Connection url is: "   << dataRef->connectionUrl);
+    logdbg("----------------------------------------------------------------");
+  
+    logdbg("Connection url set!");
+    ApiState = testConnection();
     if (ApiState == ApiStatus::OK)
     {
         logdbg("----------------------------------------------------------------");
@@ -180,12 +199,32 @@ ApiStatus RtspManager::testConnection()
     return ApiState;
 }
 
+void   RtspManager::reportFailedConnection()
+{
+    dataRef->errorHandlerRef->errorMsg = "Cam Unfound and unable to connect";
+    dataRef->errorHandlerRef->category = ErrorCategoryDetected::UNKNOWN;
+    dataRef->errorHandlerRef->reported  = ErrorCategoryReported::CAM_DISCOVERY_FAILED;
+    
+    logdbg("-----------------------------------------");
+    logdbg("Calling the onError callback");
+    logdbg("Camara Guid is: "      << cameraGuid.c_str());
+    logdbg("Camara Error Msg is: " << dataRef->errorHandlerRef->errorMsg.c_str());
+    StreamManager::setLastErrorCategoryDetected( dataRef->errorHandlerRef->category );
+    StreamManager::setLastErrorCategoryReported( dataRef->errorHandlerRef->reported  );
+    StreamManager::setLastCameraGuid( cameraGuid );
+    StreamManager::setLastCameraErrorMsg( dataRef->errorHandlerRef->errorMsg );
+    StreamManager::setLastCameraStatus("unable to find cam");
+    dataRef->streamErrorCB();
+
+    logdbg("-----------------------------------------");
+}
+
 ApiStatus RtspManager::makeElements()
 {
     if (!dataRef->connected || ApiState == ApiStatus::FATAL_ERROR)
         return ApiState;
     logdbg("***************************************");
-    logdbg("Entering makeElements.......");	
+    logdbg("Entering makeElements.......");
     if (createElements() == ApiStatus::OK)
     {
         setElementsProperties();
@@ -274,9 +313,7 @@ ApiStatus RtspManager::cleanUp()
         gst_object_unref(dataRef->rtpmp2tpay);
     if (dataRef->udpsink)
         gst_object_unref(dataRef->udpsink);
-    
-    if (dataRef->cameraGuid)
-        g_free( dataRef->cameraGuid);
+
      if (dataRef->connectionUrl)
          g_free(dataRef->connectionUrl);
     
@@ -838,12 +875,19 @@ void RtspManager::processMsgType(GstBus *bus, GstMessage* msg, RtspDataRef appRe
             {
                 appRef->errorHandlerRef->errorMsg = "";
                 appRef->errorHandlerRef->category = ErrorCategoryDetected::UNKNOWN;
-                appRef->errorHandlerRef->reported  = ErrorCategoryReported::CLEAR;
+                appRef->errorHandlerRef->reported = ErrorCategoryReported::CLEAR;
                 appRef->errorHandlerRef->processErrorState(msg);
-                appRef->streamErrorCB(   appRef->errorHandlerRef->category ,
-                                                           appRef->errorHandlerRef->reported ,
-                                                           appRef->cameraGuid,
-                                                           appRef->errorHandlerRef->errorMsg);
+                logdbg("-----------------------------------------");
+                logdbg("Calling the onError callback");
+                logdbg("Camara Guid is: "      << appRef->cameraGuid);
+                logdbg("Camara Error Msg is: " << appRef->errorHandlerRef->errorMsg);
+                StreamManager::setLastCameraErrorMsg( appRef->errorHandlerRef->errorMsg );
+                StreamManager::setLastCameraGuid(  appRef->cameraGuid );
+                StreamManager::setLastErrorCategoryDetected( appRef->errorHandlerRef->category );
+                StreamManager::setLastErrorCategoryReported(  appRef->errorHandlerRef->reported );
+                StreamManager::setLastCameraStatus( "unable to find" );
+                appRef->streamErrorCB( );
+                logdbg("-----------------------------------------");
             }
             break;
         }
@@ -938,22 +982,22 @@ void RtspManager::processMsgType(GstBus *bus, GstMessage* msg, RtspDataRef appRe
             break;
         case GST_MESSAGE_STREAM_START:
             printMsg(msg, "GST_MESSAGE_STREAM_START");
-          /*
-            logdbg ("GST_MESSAGE_STREAM_START: removing the bus watch!");
-            // remove the watch as you not interested in anything beyond this
-            if (bus != NULL)
-            {    
-                logdbg("Removing the bus signal watch !");
-                gst_bus_remove_signal_watch(bus);
-            }
-       */
-            logdbg("Allocating space for the url to pass to the decoder!");
-            url = "rtp://127.0.0.1:8000";
+            // hardcoded for now
+            //url = "rtp://127.0.0.1:8000";
+          
             if (appRef)
             {    
+                logdbg("----------------------------------------------");
                 logdbg("Calling the connected() callback!!!!");
-                appRef->streamConnectionCB( appRef->cameraGuid,  url ,  "connected");
+                logdbg("camera Guid is:      "  <<  appRef->cameraGuid);
+                logdbg("cakeStreamingURL is: "  <<  appRef->cakeStreamingUrl);
+                logdbg("IPCam status is :    "  <<  appRef->cameraStatus);
+                StreamManager::setLastCameraGuid(  appRef->cameraGuid );
+                StreamManager::setLastCameraStatus( appRef->cameraStatus );
+                StreamManager::setLastCakeboxStreamingUrl( appRef->cakeStreamingUrl );
+                appRef->streamConnectionCB();
                 logdbg("connected() callback finished?");  
+                logdbg("----------------------------------------------");
             } else {
                 logdbg("No access to the data structure cannot call the connected() callback!");
             }

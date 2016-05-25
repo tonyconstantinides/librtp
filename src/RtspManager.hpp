@@ -25,24 +25,26 @@ typedef struct _Data{
     GstElement*             queue1     = nullptr;
     GstElement*             rtph264depay = nullptr;
     GstElement*             queue2     = nullptr;
-    GstElement*             mpegtsmux    = nullptr;
-    GstElement*             rtpmp2tpay       = nullptr;
-    GstElement*             udpsink             = nullptr;
-    GstBus*                      bus                    = nullptr;
-    GstMessage*              msg                  = nullptr;
-    GstRTSPConnection*  connection       = nullptr;
-    GstRTSPUrl*                 url                     = nullptr;
-    GSocket*                        writeSocket      = nullptr;
-    GSocket*                        readSocket       = nullptr;
+    GstElement*             mpegtsmux          = nullptr;
+    GstElement*               rtpmp2tpay         = nullptr;
+    GstElement*               udpsink            = nullptr;
+    GstBus*                   bus              = nullptr;
+    GstMessage*               msg              = nullptr;
+    GstRTSPConnection*        connection       = nullptr;
+    GstRTSPUrl*               url              = nullptr;
+    GSocket*                  writeSocket      = nullptr;
+    GSocket*                  readSocket       = nullptr;
     GstRTSPWatch*             rtspWatch        = nullptr;
-    gchar*                               connectionUrl    = nullptr;
-    gchar*                                 cameraGuid      = nullptr;
-    ConnectedCallBackFunc    streamConnectionCB;
-    ErrorCallBackFunc             streamErrorCB;
+    gchar*                    connectionUrl    = nullptr;
+    std::string               cameraGuid;
+    std::string               cakeStreamingUrl;
+    std::string               cameraStatus;
+    ConnectedCallBackFunc     streamConnectionCB;
+    ErrorCallBackFunc         streamErrorCB;
     StreamErrorHandlerRef     errorHandlerRef;
 }RtspData;
 
-typedef std::shared_ptr<RtspData> RtspDataRef;
+typedef std::shared_ptr<	RtspData> RtspDataRef;
 
 class RtspManager : public IPStreamManager
 {
@@ -57,8 +59,12 @@ public:
     // the structure containes base64 encoded parms
     void addConnectionCallback(ConnectedCallBackFunc   connectedCallBack) { dataRef->streamConnectionCB = connectedCallBack; }
     void addErrorCallback(ErrorCallBackFunc streamErrorCallback)  {     dataRef->streamErrorCB = streamErrorCallback; }
+    void reportFailedConnection();
+    
+    bool isStream(CamParamsEncryptionRef camAuthRef);
+
     virtual ApiStatus connectToIPCam(CamParamsEncryptionRef camAuthRef) override;
-    virtual ApiStatus  testConnection()  override;
+    virtual ApiStatus testConnection()  override;
     virtual ApiStatus makeElements() 	 override;
     virtual ApiStatus setupPipeLine()    override;
     virtual ApiStatus startLoop()        override;

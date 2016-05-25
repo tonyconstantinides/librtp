@@ -13,21 +13,24 @@
 #include "CamParamsEncryption.hpp"
 
 typedef struct _MjpegData{
-    GMainLoop*             main_loop = nullptr;
-    GstContext*          context = nullptr ;
-    GstElement*             pipeline  = nullptr;
-    GstElement*             souphttpsrc = nullptr;
-    GstElement*             tcpserver = nullptr;
-    GstElement*             multipartdemux = nullptr;
-    GstElement*             jpegdec = nullptr;
-    GstElement*             ffenc_mpeg4 = nullptr;
-    GstBus*                   bus = nullptr;
-    GstMessage*          msg = nullptr;
+    GMainLoop*                 main_loop = nullptr;
+    GstContext*                context = nullptr ;
+    GstElement*                pipeline  = nullptr;
+    GstElement*                souphttpsrc = nullptr;
+    GstElement*                tcpserver = nullptr;
+    GstElement*                multipartdemux = nullptr;
+    GstElement*                jpegdec = nullptr;
+    GstElement*                ffenc_mpeg4 = nullptr;
+    GstBus*                    bus = nullptr;
+    GstMessage*                msg = nullptr;
     gchar*                     connectionUr = nullptr;
-    gchar*                     cameraGuid = nullptr;
-    ConnectedCallBackFunc     streamConnectionCB;
-    ErrorCallBackFunc              streamErrorCB;
-    StreamErrorHandlerRef     errorHandlerRef;
+    std::string                cameraGuid;
+    std::string                cameraErrorMsg;
+    std::string                cakeboxStreamingUrl;
+    std::string                cameraStatus;
+    ConnectedCallBackFunc      streamConnectionCB;
+    ErrorCallBackFunc          streamErrorCB;
+    StreamErrorHandlerRef      errorHandlerRef;
 }MjpegData;
 
 typedef std::shared_ptr<MjpegData> MjpegDataRef;

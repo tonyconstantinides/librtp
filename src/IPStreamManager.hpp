@@ -53,7 +53,9 @@ protected:
     bool         activeStream;
     bool         validStreamingMethod;
     std::string  connection_url;
-    std::string    cameraGuid;
+    std::string  cameraGuid;
+    std::string  cakeStreamingUrl;
+    std::string  cameraStatus;
     ApiStatus    ApiState;
     static  short messageCount;
     CamParamsEncryptionRef authCamRef;

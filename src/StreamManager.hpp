@@ -23,15 +23,35 @@ public:
     StreamManager& operator=(StreamManager&&)        = delete;
     // all auth stuff is encripted Base64, no cionnect info is sent in the clear
     ApiStatus connectToStream(CamParamsEncryptionRef camAuthRef,
-                                                ConnectedCallBackFunc  streamStarted,
-                                                ErrorCallBackFunc     streamError,
-                                                StreamType type);
-    ApiStatus disconnectStreams(std::string streamID);
+                              ConnectedCallBackFunc  streamStarted,
+                              ErrorCallBackFunc     streamError,
+                              StreamType type );
+    ApiStatus disconnectStream(CamParamsEncryptionRef camAUthRef);
+    static std::string getLastCameraGuid() { return cameraGuid; }
+    static std::string getLastCameraStatus() { return cameraStatus; }
+    static std::string getLastCameraErrorMsg() { return  cameraErrorMsg; }
+    static std::string getLastCakeboxStreamingUrl() { return cakeboxStreamingUrl; }
+    static ErrorCategoryDetected getLastErrorCategoryDetected()  { return category; }
+    static ErrorCategoryReported getLastErrorCategoryuReported() { return reported; }
+
+    static void setLastCameraGuid(std::string lastCameraGuid) { cameraGuid = lastCameraGuid; }
+    static void setLastCameraErrorMsg(std::string  lastCameraErrorMsg) { cameraErrorMsg = lastCameraErrorMsg; }
+    static void setLastCameraStatus(std::string lastCameraStatus ) { cameraStatus = lastCameraStatus; }
+    static void setLastCakeboxStreamingUrl( std::string lastCakeboxStreamingUrl  ) { cakeboxStreamingUrl = lastCakeboxStreamingUrl;}
+    static void setLastErrorCategoryDetected( ErrorCategoryDetected last) { category = last; }
+    static void setLastErrorCategoryReported( ErrorCategoryReported last) { reported = last; }
     dispatch_queue_t  queue;
 protected:
     StreamManager();    
     static StreamManagerRef instance;
     static VideoDataList    streamList;
+    static std::string cameraGuid;
+    static std::string cameraStatus;
+    static std::string cameraErrorMsg;
+    static std::string cakeboxStreamingUrl;
+    static ErrorCategoryDetected category;
+    static ErrorCategoryReported reported;
+
     bool activeStream; // the one that streaming
     bool validStreamingMethod;  // may be possible but not streaming
     ApiStatus ApiState;
