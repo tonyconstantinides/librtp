@@ -26,6 +26,11 @@ public:
                               ConnectedCallBackFunc  streamStarted,
                               ErrorCallBackFunc     streamError,
                               StreamType type );
+
+    void connectBlock(CamParamsEncryptionRef camAuthRef,
+                       ConnectedCallBackFunc  streamStarted,
+                       ErrorCallBackFunc      streamError,
+                       StreamType             streamType);
     ApiStatus disconnectStream(CamParamsEncryptionRef camAUthRef);
     static std::string getLastCameraGuid() { return cameraGuid; }
     static std::string getLastCameraStatus() { return cameraStatus; }
@@ -40,7 +45,7 @@ public:
     static void setLastCakeboxStreamingUrl( std::string lastCakeboxStreamingUrl  ) { cakeboxStreamingUrl = lastCakeboxStreamingUrl;}
     static void setLastErrorCategoryDetected( ErrorCategoryDetected last) { category = last; }
     static void setLastErrorCategoryReported( ErrorCategoryReported last) { reported = last; }
-    dispatch_queue_t  queue;
+    dispatch_queue_t  queue1, queue2, queue3, queue4;
 protected:
     StreamManager();    
     static StreamManagerRef instance;

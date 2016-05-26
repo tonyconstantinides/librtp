@@ -44,7 +44,7 @@ StreamManagerRef StreamManager::createStreamManager()
 }
 
 StreamManager::StreamManager()
-:  queue(nullptr),  ApiState(ApiStatus::OK)
+:  queue1(nullptr), queue2(nullptr), queue3(nullptr), queue4(nullptr), ApiState(ApiStatus::OK)
 {
     logdbg("Entering StreamManager constructor.......");
     logdbg("Exiting StreaManager constructor.......");
@@ -60,25 +60,78 @@ StreamManager::~StreamManager()
     streamList.clear();
     instance.reset();
     instance   = nullptr;
-    dispatch_release(queue);
-    queue = nullptr;
+    if (queue1)
+        dispatch_release(queue1);
+    if (queue2)
+        dispatch_release(queue2);
+    if (queue3)
+        dispatch_release(queue3);
+    if (queue4)
+        dispatch_release(queue4);
+
+    queue1 = nullptr;
+    queue2 = nullptr;
+    queue3 = nullptr;
+    queue4 = nullptr;
+
     logdbg("Exiting StreaManager destructor.......");
 }
 
 ApiStatus StreamManager::connectToStream(CamParamsEncryptionRef camAuthRef,
-                                         ConnectedCallBackFunc streamStarted,
-                                         ErrorCallBackFunc    streamError,
-                                         StreamType type)
+                                         ConnectedCallBackFunc  streamStarted,
+                                         ErrorCallBackFunc      streamError,
+                                         StreamType             streamType)
 {
     logdbg("Entering StreamManager::connectToH264Stream.......");
-    queue = dispatch_queue_create("com.evaautomation.StreamManager",      DISPATCH_QUEUE_SERIAL);
-    dispatch_async(queue, ^{
+    if (streamList.size() == 0)
+    {    
+        queue1 = dispatch_queue_create("com.evaautomation.StreamManager.ipcam1",      DISPATCH_QUEUE_SERIAL);
+        dispatch_async(queue1, ^{
+            connectBlock(camAuthRef, streamStarted, streamError, streamType);
+        });
+    } else if (streamList.size() == 1)
+    {
+        queue2 = dispatch_queue_create("com.evaautomation.StreamManager.ipcam2",      DISPATCH_QUEUE_SERIAL);
+        dispatch_async(queue2, ^{
+            connectBlock(camAuthRef, streamStarted, streamError, streamType);
+        });
+
+    } else if (streamList.size() == 2)
+    {
+        queue3 = dispatch_queue_create("com.evaautomation.StreamManager.ipcam3",      DISPATCH_QUEUE_SERIAL);
+        dispatch_async(queue3, ^{
+            connectBlock(camAuthRef, streamStarted, streamError, streamType);
+        });
+    }
+    else if (streamList.size() == 3)
+    {
+       queue4 = dispatch_queue_create("com.evaautomation.StreamManager.ipcam4",      DISPATCH_QUEUE_SERIAL);
+       dispatch_async(queue4, ^{
+            connectBlock(camAuthRef, streamStarted, streamError, streamType);
+        });
+    }   
+    else {
+        logerr() << "Only Four active IP Cams are supported";
+        ApiState = ApiStatus::FAIL;
+    }
+    
+   logdbg("Leaving StreamManager::connectToH264Stream.......");
+   return ApiState;
+}   
+
+
+void StreamManager::connectBlock(CamParamsEncryptionRef camAuthRef,
+                                 ConnectedCallBackFunc  streamStarted,
+                                 ErrorCallBackFunc      streamError,
+                                 StreamType             streamType)
+{
+
     // used to id the stream based on cmaera guid
     RtspManagerRef          rtspManagerRef = RtspManager::createNewRtspManager();
     std::string cameraGuid = camAuthRef->base64_decode(camAuthRef->getCameraGuid());
     rtspManagerRef->setName(cameraGuid);
     MjpegManagerRef   mjpegManagerRef = MjpegManager::createNewMjpegManager();
-    switch (type )
+    switch (streamType)
     {
         case StreamType::MJPEG_ONLY:
             rtspManagerRef->validStreamMethod(false);
@@ -147,13 +200,9 @@ ApiStatus StreamManager::connectToStream(CamParamsEncryptionRef camAuthRef,
             streamList.emplace_back(pair);
             mjpegManagerRef->validStreamMethod(true);
             mjpegManagerRef->activateStream(false); // possible to switch to MJPEG but not by default
-    
             break;
     }
-   });
-   logdbg("Leaving StreamManager::connectToH264Stream.......");
-    return ApiState;
-}   
+}
 
 ApiStatus StreamManager::disconnectStream(CamParamsEncryptionRef camAuth)
 {
