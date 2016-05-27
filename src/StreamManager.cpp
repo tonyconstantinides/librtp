@@ -20,6 +20,7 @@ std::string StreamManager::cameraErrorMsg = "";
 std::string StreamManager::cakeboxStreamingUrl = "";
 ErrorCategoryDetected StreamManager::category = ErrorCategoryDetected::UNKNOWN;
 ErrorCategoryReported StreamManager::reported = ErrorCategoryReported::CLEAR; 
+int StreamManager::activeCamNum = 0;
 
 
 StreamManagerRef StreamManager::createStreamManager()
@@ -158,9 +159,16 @@ void StreamManager::connectBlock(CamParamsEncryptionRef camAuthRef,
             mjpegManagerRef->activateStream(false);
          break;
         case StreamType::H264_AND_MJPEG:
-       
+            // add to the list
+            VideoStreamPair pair = std::make_pair(rtspManagerRef, mjpegManagerRef );
+            streamList.emplace_back(pair);
+
             rtspManagerRef->validStreamMethod(true);
             rtspManagerRef->activateStream(true); // this is the prime stream
+            // set the active Cam Num
+            RtspManager::setActiveCamNum(streamList.size() );
+
+
             // old school programmiong with no exceptions, check every return
             rtspManagerRef->addConnectionCallback(streamStarted);
             rtspManagerRef->addErrorCallback(streamError);
@@ -196,8 +204,6 @@ void StreamManager::connectBlock(CamParamsEncryptionRef camAuthRef,
                 return;
             }
             
-            VideoStreamPair pair = std::make_pair(rtspManagerRef, mjpegManagerRef );
-            streamList.emplace_back(pair);
             mjpegManagerRef->validStreamMethod(true);
             mjpegManagerRef->activateStream(false); // possible to switch to MJPEG but not by default
             break;

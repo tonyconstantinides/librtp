@@ -14,6 +14,7 @@
 
 
 RtspManagerRef RtspManager::instance = nullptr;
+int RtspManager::activeCamNum = 0;    
 
 RtspManager::RtspManager()
 {
@@ -76,7 +77,7 @@ ApiStatus RtspManager::connectToIPCam( CamParamsEncryptionRef camAuthRef)
     GstRTSPAuthMethod method = GST_RTSP_AUTH_DIGEST;
     assignAuth(camAuthRef);
     cameraGuid =   authCamRef->base64_decode(crypto_cameraGuid ).c_str();
-    cakeStreamingUrl =  "rtp://127.0.0.1:8000";
+    cakeStreamingUrl =  "rtp://127.0.0.1";
     cameraStatus = "connected";
 
     connection_info.user        = strdup(camAuthRef->base64_decode(crypto_userName).c_str());
@@ -468,16 +469,29 @@ ApiStatus  RtspManager::setElementsProperties()
                  
     g_object_set( G_OBJECT(dataRef->queue2),
                  "max-size-buffers", 2,
-                 "max-size-bytes", 20000,
+                  "max-size-bytes", 20000,
                  "leaky",    1,
                  NULL);
-    
+
+    int portNum;
+    if (getActiveCamNum() == 1)
+        portNum = 8000;
+    else if (getActiveCamNum() == 2)
+        portNum = 8250;
+    else if (getActiveCamNum() == 3)
+        portNum = 8500;
+    else if (getActiveCamNum() == 4)
+        portNum = 8750;
+    else {
+        return fatalApiState("activeCamNum must be between 1 and 4");
+    }
     g_object_set( G_OBJECT (dataRef->udpsink),
                  "host",        "127.0.0.1",
-                 "port",        8000,
-                 "sync",      FALSE,
-                 "async",    FALSE,
+                 "port",        portNum,
+                 "sync",        FALSE,
+                 "async",       FALSE,
                  NULL);
+    logdbg("Caek box streaming url is : " << "127.0.0.1" << portNum);
     logdbg("Leaving setElementsProperties");
     logdbg("***************************************");
     return ApiState;
@@ -994,7 +1008,21 @@ void RtspManager::processMsgType(GstBus *bus, GstMessage* msg, RtspDataRef appRe
                 logdbg("IPCam status is :    "  <<  appRef->cameraStatus);
                 StreamManager::setLastCameraGuid(  appRef->cameraGuid );
                 StreamManager::setLastCameraStatus( appRef->cameraStatus );
+            
+               int portNum = 0;
+               if (getActiveCamNum() == 1)
+                  portNum = 8000;
+               else if (getActiveCamNum() == 2)
+                   portNum = 8250;
+                else if (getActiveCamNum() == 3)
+                    portNum = 8500;
+                else if (getActiveCamNum() == 4)
+                    portNum = 8750;
+                // now add it to the streaming url
+                appRef->cakeStreamingUrl.append(":");  
+                appRef->cakeStreamingUrl.append( std::to_string(portNum));
                 StreamManager::setLastCakeboxStreamingUrl( appRef->cakeStreamingUrl );
+           
                 appRef->streamConnectionCB();
                 logdbg("connected() callback finished?");  
                 logdbg("----------------------------------------------");

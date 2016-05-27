@@ -50,6 +50,7 @@ protected:
     StreamManager();    
     static StreamManagerRef instance;
     static VideoDataList    streamList;
+    static int activeCamNum;
     static std::string cameraGuid;
     static std::string cameraStatus;
     static std::string cameraErrorMsg;

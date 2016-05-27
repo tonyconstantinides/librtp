@@ -62,6 +62,8 @@ public:
     void reportFailedConnection();
     
     bool isStream(CamParamsEncryptionRef camAuthRef);
+    static void setActiveCamNum( int camNum) { activeCamNum = camNum; } 
+    static int  getActiveCamNum() { return activeCamNum; }
 
     virtual ApiStatus connectToIPCam(CamParamsEncryptionRef camAuthRef) override;
     virtual ApiStatus testConnection()  override;
@@ -88,7 +90,7 @@ public:
 
 protected:
     RtspManager();
-   
+    static int activeCamNum;    
     static RtspManagerRef instance;
     RtspDataRef dataRef;
     GstRTSPUrl connection_info = {

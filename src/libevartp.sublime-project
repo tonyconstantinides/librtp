@@ -1,10 +1,53 @@
 {
-	   "settings":
-    {
-        "tab_size": 4
-    },
-    "buildsettings":
-    {
-    	
-    }	
+	"build_systems":
+	[
+		{
+			"cmd":
+			[
+				"xcodebuild",
+				"-project",
+				"/Users/tonyconstantinides/src/libevartp/build/xcode/evartp.xcodeproj",
+				"-configuration",
+				"Debug",
+				"OBJROOT=~/build"
+			],
+			"name": "Xcode Build",
+			"variants":
+			[
+				{
+					"cmd":
+					[
+						"xcodebuild -project /Users/tonyconstantinides/src/libevartp/build/xcode/evartp.xcodeproj"
+					],
+					"name": "Xcode Run Debug"
+				},
+				{
+					"cmd":
+					[
+						"~/local/bin/xctool",
+						"-project",
+						"$project_path/$project_base_name.xcodeproj",
+						"-configuration",
+						"Release",
+						"SYMROOT=~/build/Products/Release",
+						"OBJROOT=~/build"
+					],
+					"name": "Xcode Build Release"
+				},
+				{
+					"cmd":
+					[
+						"$~/build/Products/Release/$project_base_name.app/Contents/MacOS/$project_base_name"
+					],
+					"name": "Xcode Run Release"
+				}
+			]
+		}
+	],
+	"folders":
+	[
+		{
+			"path": "."
+		}
+	]
 }
