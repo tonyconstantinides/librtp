@@ -48,8 +48,11 @@ public:
     dispatch_queue_t  queue1, queue2, queue3, queue4;
 protected:
     StreamManager();    
+    std::mutex instance_mutex;
     static StreamManagerRef instance;
+    std::mutex streamList_mutex;
     static VideoDataList    streamList;
+    std::mutex activeCamNum_mutex;
     static int activeCamNum;
     static std::string cameraGuid;
     static std::string cameraStatus;
@@ -57,7 +60,7 @@ protected:
     static std::string cakeboxStreamingUrl;
     static ErrorCategoryDetected category;
     static ErrorCategoryReported reported;
-
+    int callCount = 0;
     bool activeStream; // the one that streaming
     bool validStreamingMethod;  // may be possible but not streaming
     ApiStatus ApiState;

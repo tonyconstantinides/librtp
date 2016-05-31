@@ -161,6 +161,7 @@ ApiStatus RtspManager::connectToIPCam( CamParamsEncryptionRef camAuthRef)
 
 ApiStatus RtspManager::testConnection()
 {
+    /*
     dataRef->readSocket = gst_rtsp_connection_get_read_socket(dataRef->connection);
     if (!dataRef->readSocket)
     {
@@ -171,6 +172,7 @@ ApiStatus RtspManager::testConnection()
     {
         return errorApiState("RtspManager::gst_rtsp_connection_get_write_socket failed!");
     }
+    */
     dataRef->url =  gst_rtsp_connection_get_url(dataRef->connection);
     if (dataRef->url == NULL)
     {
@@ -485,13 +487,15 @@ ApiStatus  RtspManager::setElementsProperties()
     else {
         return fatalApiState("activeCamNum must be between 1 and 4");
     }
+    logdbg(" UDP streaming port based on Cameras connected is: " << std::to_string(portNum));
+
     g_object_set( G_OBJECT (dataRef->udpsink),
                  "host",        "127.0.0.1",
                  "port",        portNum,
                  "sync",        FALSE,
                  "async",       FALSE,
                  NULL);
-    logdbg("Caek box streaming url is : " << "127.0.0.1" << portNum);
+    logdbg("Cake box streaming url is : " << "127.0.0.1:" << portNum);
     logdbg("Leaving setElementsProperties");
     logdbg("***************************************");
     return ApiState;

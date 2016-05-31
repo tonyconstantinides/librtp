@@ -11,6 +11,7 @@
 #include "RtspManager.hpp"
 #include "MjpegManager.hpp"
 #include <dispatch/dispatch.h>
+#include <thread>
 
 StreamManagerRef StreamManager::instance   = nullptr;
 VideoDataList StreamManager::streamList = {};
@@ -54,13 +55,17 @@ StreamManager::StreamManager()
 StreamManager::~StreamManager()
 {
     logdbg("Entering StreamManager destructor.......");
+    std::lock_guard<std::mutex> guard(streamList_mutex);
     for (auto it = streamList.begin(); it != streamList.end();)
     {
         it = streamList.erase(it);
     }       
     streamList.clear();
+
+    std::lock_guard<std::mutex> guard2(instance_mutex);
     instance.reset();
     instance   = nullptr;
+ 
     if (queue1)
         dispatch_release(queue1);
     if (queue2)
@@ -83,31 +88,46 @@ ApiStatus StreamManager::connectToStream(CamParamsEncryptionRef camAuthRef,
                                          ErrorCallBackFunc      streamError,
                                          StreamType             streamType)
 {
+    callCount++;
     logdbg("Entering StreamManager::connectToH264Stream.......");
-    if (streamList.size() == 0)
+    logdbg("Placing mutext guard for streamList!");
+
+    if (callCount == 1)
     {    
         queue1 = dispatch_queue_create("com.evaautomation.StreamManager.ipcam1",      DISPATCH_QUEUE_SERIAL);
         dispatch_async(queue1, ^{
+            logdbg("--------------------------------------------");
+            logdbg("Inside dispatch queue 1 for camera One!");
+            logdbg("--------------------------------------------");
             connectBlock(camAuthRef, streamStarted, streamError, streamType);
         });
-    } else if (streamList.size() == 1)
+    } else if (callCount == 2)
     {
+     
         queue2 = dispatch_queue_create("com.evaautomation.StreamManager.ipcam2",      DISPATCH_QUEUE_SERIAL);
         dispatch_async(queue2, ^{
-            connectBlock(camAuthRef, streamStarted, streamError, streamType);
+            logdbg("--------------------------------------------");
+            logdbg("Inside dispatch queue 2 for camera Two!");
+            logdbg("--------------------------------------------");
+           connectBlock(camAuthRef, streamStarted, streamError, streamType);
         });
-
-    } else if (streamList.size() == 2)
+    } else if (callCount == 3)
     {
         queue3 = dispatch_queue_create("com.evaautomation.StreamManager.ipcam3",      DISPATCH_QUEUE_SERIAL);
         dispatch_async(queue3, ^{
+            logdbg("--------------------------------------------");
+            logdbg("Inside dispatch queue 3 for camera Three!");
+            logdbg("--------------------------------------------");
             connectBlock(camAuthRef, streamStarted, streamError, streamType);
         });
     }
-    else if (streamList.size() == 3)
+    else if (callCount == 4 )
     {
        queue4 = dispatch_queue_create("com.evaautomation.StreamManager.ipcam4",      DISPATCH_QUEUE_SERIAL);
        dispatch_async(queue4, ^{
+            logdbg("--------------------------------------------");
+            logdbg("Inside dispatch queue 4 for camera Four!");
+            logdbg("--------------------------------------------");
             connectBlock(camAuthRef, streamStarted, streamError, streamType);
         });
     }   
@@ -126,8 +146,11 @@ void StreamManager::connectBlock(CamParamsEncryptionRef camAuthRef,
                                  ErrorCallBackFunc      streamError,
                                  StreamType             streamType)
 {
+    logdbg("Entering StreamManager::connectBlock.......");
 
     // used to id the stream based on cmaera guid
+    std::mutex rtpMangerRef_mutex;
+    std::lock_guard<std::mutex> guard(rtpMangerRef_mutex); 
     RtspManagerRef          rtspManagerRef = RtspManager::createNewRtspManager();
     std::string cameraGuid = camAuthRef->base64_decode(camAuthRef->getCameraGuid());
     rtspManagerRef->setName(cameraGuid);
@@ -159,8 +182,10 @@ void StreamManager::connectBlock(CamParamsEncryptionRef camAuthRef,
             mjpegManagerRef->activateStream(false);
          break;
         case StreamType::H264_AND_MJPEG:
+            logdbg("Camera is H264 and MJPEG compatable!");
             // add to the list
             VideoStreamPair pair = std::make_pair(rtspManagerRef, mjpegManagerRef );
+            std::lock_guard<std::mutex> guard(streamList_mutex);
             streamList.emplace_back(pair);
 
             rtspManagerRef->validStreamMethod(true);
@@ -208,6 +233,7 @@ void StreamManager::connectBlock(CamParamsEncryptionRef camAuthRef,
             mjpegManagerRef->activateStream(false); // possible to switch to MJPEG but not by default
             break;
     }
+    logdbg("Leaving StreamManager::connectBlock.......");
 }
 
 ApiStatus StreamManager::disconnectStream(CamParamsEncryptionRef camAuth)
