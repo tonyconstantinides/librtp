@@ -11,16 +11,47 @@
 #include "RtspManager.hpp"
 #include "Common.hpp"
 #include "CamParamsEncryption.hpp"
+#include <memory>
 
-
-RtspManagerRef RtspManager::instance = nullptr;
+//RtspManagerRef RtspManager::instance = nullptr;
 int RtspManager::activeCamNum = 0;    
+int RtspManager::callCount    = 0;
+
+//RtspManagerRef RtspManager::createInstance()
+//{
+//     struct _RtspManager : RtspManager {
+//            _RtspManager()
+//            : RtspManager() {}
+//     };
+//}
 
 RtspManager::RtspManager()
+: IPStreamManager()
 {
     logdbg("***************************************");
     logdbg("Entering RtspManager constructor.......");
-    logdbg("Now init gstreamer for RtspManager.......");
+    callCount++;
+    if (callCount == 1)
+    {
+       logdbg("***************************************");
+       logdbg("Creating first instance of RtspManager");
+       logdbg("***************************************");   
+    } else if (callCount == 2)
+    {
+       logdbg("***************************************");
+       logdbg("Creating second instance of RtspManager");
+       logdbg("***************************************");
+    } else if (callCount == 3)
+    {
+       logdbg("***************************************");
+       logdbg("Creating third instance of RtspManager");
+       logdbg("***************************************");
+    }  else if (callCount == 4)
+    {
+       logdbg("***************************************");
+       logdbg("Creating fourth instance of RtspManager");
+       logdbg("***************************************");
+    } 
     gst_init (0, nullptr);
     dataRef = std::make_shared<RtspData>();
     dataRef->errorHandlerRef = std::make_shared<StreamErrorHandler>();
@@ -32,8 +63,8 @@ RtspManager::~RtspManager()
 {
     logdbg("***************************************");
     logdbg("Entering RtspManager destructor.......");
-    instance.reset();
-    instance   = nullptr;
+    //instance.reset();
+    //instance   = nullptr;
     dataRef->errorHandlerRef.reset();
     dataRef->errorHandlerRef = nullptr;
     dataRef.reset();
@@ -50,23 +81,6 @@ bool RtspManager::isStream(CamParamsEncryptionRef authCamRef)
         return true;
     else
         return false;
-}
-
-RtspManagerRef RtspManager::createNewRtspManager()
-{
-    logdbg("***************************************");
-    logdbg("Entering createNewRtspManager.......");
-    static dispatch_once_t onceToken;
-    dispatch_once(&onceToken, ^{
-        struct _RtspManager : RtspManager {
-            _RtspManager()
-            : RtspManager() {}
-        };
-        instance = std::make_shared<_RtspManager>();
-    });
-    logdbg("Leaving createNewRtspManager.......");
-    logdbg("***************************************");
-    return instance;
 }
 
 ApiStatus RtspManager::connectToIPCam( CamParamsEncryptionRef camAuthRef)
@@ -120,16 +134,39 @@ ApiStatus RtspManager::connectToIPCam( CamParamsEncryptionRef camAuthRef)
     dataRef->connected = true;
      // setting the connection_url
      connection_url = "rtsp://";
-     connection_url.append(connection_info.user);
+     if (connection_info.user != nullptr)
+         connection_url.append(connection_info.user);
+     else
+        logdbg("Warning UserName is NULL in RtspManager");
+
      connection_url.append(":");
-     connection_url.append(connection_info.passwd);
+     if (connection_info.passwd != nullptr)
+      connection_url.append(connection_info.passwd);
+     else
+         logdbg("Warning passwd is NULL in RtspManager");
      connection_url.append("@");
-     connection_url.append(connection_info.host);
+
+     if (connection_info.host != nullptr)
+       connection_url.append(connection_info.host);
+     else
+         logdbg("Warning host is NULL in RtspManager");
      connection_url.append(":");
-     connection_url.append( std::to_string(connection_info.port) );
-     connection_url.append(connection_info.abspath);
-     connection_url.append(connection_info.query);
-    
+
+     if (connection_info.port != 0)
+        connection_url.append( std::to_string(connection_info.port) );
+     else
+       logdbg("Warning port is ZERO in RtspManager");
+
+     if (connection_info.abspath != nullptr)   
+         connection_url.append(connection_info.abspath);
+     else
+         logdbg("Warning abspath is NULL in RtspManager");
+
+     if (connection_info.query != nullptr)
+         connection_url.append(connection_info.query);
+     else
+       logdbg("Warning query is NULL in RtspManager");
+
     logdbg("Setting the connection url");
     dataRef->connectionUrl =  new  gchar[connection_url.length() + 1];
     std::strncpy( dataRef->connectionUrl ,  connection_url.c_str(), connection_url.length());
@@ -264,10 +301,19 @@ ApiStatus RtspManager::startLoop()
     logdbg("***************************************");
     logdbg("Entering startLoop.......");
     logdbg("Creating the main loop...");
-    dataRef->main_loop = g_main_loop_new (NULL, FALSE);
+    static dispatch_once_t newToken;
+    dispatch_once(&newToken, ^{
+   //      dataRef->main_loop = g_main_loop_new (NULL, FALSE);
+    });
     // add a signal on the bus for messages
     dataRef->bus = gst_element_get_bus( dataRef->pipeline);
     g_signal_connect (dataRef->bus, "message",  G_CALLBACK (RtspManager::bus_call), &dataRef);
+    /*
+    gst_bus_set_sync_handler(dataRef->bus,
+                              &RtspManager::busSyncHandler,
+                              &dataRef,  
+                              &RtspManager::destroyNotify);
+    */
     gst_bus_add_signal_watch_full (dataRef->bus, G_PRIORITY_DEFAULT);
     dataRef->msg = gst_bus_pop_filtered (dataRef->bus, GST_MESSAGE_ANY);
     // Start playing
@@ -276,14 +322,45 @@ ApiStatus RtspManager::startLoop()
     {
         return errorApiState("RtspManager::Error calling gst_element_set_state()");
     }
-    logdbg("Starting loop.......");
-    // now start the loop
-    g_main_loop_run (dataRef->main_loop);
-    
-    cleanUp();
+    static dispatch_once_t loopToken;
+    dispatch_once(&loopToken, ^{
+  //    logdbg("-------------------------------------------------------");
+  //    logdbg("Main Event Gstream loop not running so start it!");
+  //    logdbg("-------------------------------------------------------");
+//      g_main_loop_run( dataRef->main_loop );
+    });
     logdbg("Exiting startLoop.......");
     logdbg("***************************************");
     return ApiState;
+}
+
+GstBusSyncReply RtspManager::busSyncHandler(GstBus *bus,
+                            GstMessage *msg,
+                            gpointer user_data)
+{
+    logdbg("Entering busSyncHandler loop for a particular camera thread");
+    logdbg("Making a bus call from the SyncHandler");
+
+    //RtspData*  new_pointer =  (RtspData*)(user_data);
+    //if (!new_pointer)
+    //{
+     //   logdbg("Pointer is NULL for gpointer in  RtspManager::busSyncHandler!");
+    //    return GST_BUS_ASYNC;
+    //} else
+    //{    
+        //RtspDataRef appRef(new_pointer);
+    processMsgType(bus, msg, NULL);         
+   
+
+        // processMsgType( bus, message, NULL);
+    //}
+    logdbg("Leaving busSyncHandler loop for a particular camera thread");
+    return GST_BUS_ASYNC;
+}
+
+void RtspManager::destroyNotify(gpointer data)
+{
+   //cleanUp();
 }
 
 ApiStatus RtspManager::cleanUp()
@@ -884,7 +961,7 @@ void RtspManager::processMsgType(GstBus *bus, GstMessage* msg, RtspDataRef appRe
         case GST_MESSAGE_EOS: {
             printMsg(msg, " GST_MESSAGE_EOS");
             logdbg ("End of stream\n");
-            g_main_loop_quit ( appRef->main_loop );
+            //g_main_loop_quit ( appRef->main_loop );
             break;
         }
         case GST_MESSAGE_ERROR: {
@@ -904,8 +981,17 @@ void RtspManager::processMsgType(GstBus *bus, GstMessage* msg, RtspDataRef appRe
                 StreamManager::setLastErrorCategoryDetected( appRef->errorHandlerRef->category );
                 StreamManager::setLastErrorCategoryReported(  appRef->errorHandlerRef->reported );
                 StreamManager::setLastCameraStatus( "unable to find" );
-                appRef->streamErrorCB( );
+                if (appRef->streamErrorCB)
+                {    
+                    appRef->streamErrorCB( );
+                } 
+                else 
+                {
+                    logdbg("Unable to call onError callback!");
+                }   
                 logdbg("-----------------------------------------");
+            } else {
+                 logdbg("No access to apRefd in GST_MESSAGE_ERROR handler");
             }
             break;
         }
@@ -990,7 +1076,7 @@ void RtspManager::processMsgType(GstBus *bus, GstMessage* msg, RtspDataRef appRe
             printMsg(msg, "GST_MESSAGE_QOS");
             break;
         case GST_MESSAGE_PROGRESS:
-            //printMsg(msg, "GST_MESSAGE_PROGRESS");
+            printMsg(msg, "GST_MESSAGE_PROGRESS");
             break;
         case GST_MESSAGE_TOC:
             printMsg(msg, "GST_MESSAGE_TOC");

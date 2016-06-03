@@ -12,6 +12,7 @@
 typedef std::pair<RtspManagerRef, MjpegManagerRef> VideoStreamPair;
 typedef std::vector<VideoStreamPair>   VideoDataList;
 
+
 class StreamManager
 {
 public:
@@ -45,12 +46,11 @@ public:
     static void setLastCakeboxStreamingUrl( std::string lastCakeboxStreamingUrl  ) { cakeboxStreamingUrl = lastCakeboxStreamingUrl;}
     static void setLastErrorCategoryDetected( ErrorCategoryDetected last) { category = last; }
     static void setLastErrorCategoryReported( ErrorCategoryReported last) { reported = last; }
-    dispatch_queue_t  queue1, queue2, queue3, queue4;
-protected:
+
+ protected:
     StreamManager();    
     std::mutex instance_mutex;
     static StreamManagerRef instance;
-    std::mutex streamList_mutex;
     static VideoDataList    streamList;
     std::mutex activeCamNum_mutex;
     static int activeCamNum;
@@ -60,10 +60,12 @@ protected:
     static std::string cakeboxStreamingUrl;
     static ErrorCategoryDetected category;
     static ErrorCategoryReported reported;
+
     int callCount = 0;
     bool activeStream; // the one that streaming
     bool validStreamingMethod;  // may be possible but not streaming
     ApiStatus ApiState;
+ 
 };
 
 #endif /* StreamManager_hpp */

@@ -49,7 +49,7 @@ typedef std::shared_ptr<	RtspData> RtspDataRef;
 class RtspManager : public IPStreamManager
 {
 public:
-    static  RtspManagerRef  createNewRtspManager();
+    RtspManager();
     virtual ~RtspManager();
     RtspManager(RtspManager const&)                        = delete;    // Copy construct
     RtspManager(RtspManager&&)                                = delete;   // Move construct
@@ -57,8 +57,8 @@ public:
     RtspManager& operator=(RtspManager&&)                 = default;  // Move assign
 
     // the structure containes base64 encoded parms
-    void addConnectionCallback(ConnectedCallBackFunc   connectedCallBack) { dataRef->streamConnectionCB = connectedCallBack; }
-    void addErrorCallback(ErrorCallBackFunc streamErrorCallback)  {     dataRef->streamErrorCB = streamErrorCallback; }
+    void addConnectionCallback(ConnectedCallBackFunc connectedCallBack) { dataRef->streamConnectionCB = connectedCallBack; }
+    void addErrorCallback(ErrorCallBackFunc streamErrorCallback)  { dataRef->streamErrorCB = streamErrorCallback; }
     void reportFailedConnection();
     
     bool isStream(CamParamsEncryptionRef camAuthRef);
@@ -86,12 +86,14 @@ public:
     static void rtpbin_pad_added_cb(GstElement *rtpbin, GstPad  *pad,  RtspDataRef data);
     static void rtspsrc_pad_added_cb (GstElement *rtspsrc, GstPad  *pad,  RtspDataRef appRef);
     static void rtspsrc_pad_removed_cb (GstElement *rtspsrc, GstPad  *pad,  RtspDataRef appRef);
-    static void rtspsrc_no_more_pads_cb(GstElement *rtspsrc, RtspDataRef appRef);
+    static void rtspsrc_no_more_pads_cb (GstElement *rtspsrc, RtspDataRef appRef);
+    static GstBusSyncReply busSyncHandler(GstBus *bus, GstMessage *message, gpointer user_data);
+    static void destroyNotify(gpointer data);
 
 protected:
-    RtspManager();
+ 
     static int activeCamNum;    
-    static RtspManagerRef instance;
+    static int callCount;
     RtspDataRef dataRef;
     GstRTSPUrl connection_info = {
         GST_RTSP_LOWER_TRANS_TCP,
