@@ -10,7 +10,6 @@
 #include "Common.hpp"
 #include "CamParamsEncryption.hpp"
 using namespace Jetpack::Foundation;
-MjpegManagerRef MjpegManager::instance = nullptr;
 
 MjpegManager::MjpegManager()
 {
@@ -27,8 +26,6 @@ MjpegManager::~MjpegManager()
 {
     logdbg("***************************************");
     logdbg("Entering MjpegManager destructor .......");
-    instance.reset();
-    instance   = nullptr;
     dataRef->errorHandlerRef.reset();
     dataRef->errorHandlerRef = nullptr;
     dataRef.reset();
@@ -37,23 +34,6 @@ MjpegManager::~MjpegManager()
     logdbg("***************************************");
 }
 
-MjpegManagerRef  MjpegManager::createNewMjpegManager()
-{
-    logdbg("***************************************");
-    logdbg("Entering createNewMjpegManager.......");
-    static dispatch_once_t onceToken;
-    dispatch_once(&onceToken, ^{
-        struct _MjpegManager : MjpegManager {
-            _MjpegManager()
-            : MjpegManager() {}
-        };
-        instance = std::make_shared<_MjpegManager>();
-    });
-    
-    logdbg("Leaving createNewMjpegManager.......");
-    logdbg("***************************************");
-    return instance;
-}
 
 ApiStatus MjpegManager::connectToIPCam(CamParamsEncryptionRef camAuthRef)
 {
@@ -340,11 +320,6 @@ void MjpegManager::processMsgType(GstBus *bus, GstMessage* msg, gpointer data)
             pdata->errorHandlerRef->reported  = ErrorCategoryReported::CLEAR;
             pdata->errorHandlerRef->processErrorState(msg);
             pdata->cameraErrorMsg = pdata->errorHandlerRef->errorMsg;
-
-            StreamManager::setLastErrorCategoryDetected(pdata->errorHandlerRef->category );
-            StreamManager::setLastErrorCategoryReported( pdata->errorHandlerRef->reported );    
-            StreamManager::setLastCameraGuid(   pdata->cameraGuid );
-            StreamManager::setLastCameraErrorMsg( pdata->cameraErrorMsg );
             pdata->streamErrorCB();
             break;
         }
@@ -391,9 +366,6 @@ void MjpegManager::processMsgType(GstBus *bus, GstMessage* msg, gpointer data)
                 logdbg("Calling the connected() callback!!!!");
                 pdata->cakeboxStreamingUrl = "http://127.0.0.1:8000";
                 pdata->cameraStatus    = "connected";
-                StreamManager::setLastCakeboxStreamingUrl( pdata->cakeboxStreamingUrl );
-                StreamManager::setLastCameraStatus( pdata->cameraStatus );
-                StreamManager::setLastCameraGuid( pdata->cameraGuid );
                 pdata->streamConnectionCB();
                 logdbg("connected() callback finished?");
             } else {

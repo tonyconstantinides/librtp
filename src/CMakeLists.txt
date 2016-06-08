@@ -20,6 +20,7 @@ list(
     StreamManager.hpp	
     CamParamsEncryption.hpp
     StreamErrorHandler.hpp
+    CamNotificationDefs.hpp
     Common.hpp
 )
 

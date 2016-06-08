@@ -15,8 +15,13 @@
 
 // Structure to contain all our information, so we can pass it around
 // must raw pointers as the underlying API is C-based
-typedef struct _Data{
-    gboolean                  connected = false;
+typedef struct _Data : std::enable_shared_from_this<_Data>
+{
+    std::shared_ptr<_Data> getptr() {
+        return shared_from_this();
+    }
+    std::string              cameraTitle;
+    gboolean                 connected = false;
     GMainLoop*               main_loop = nullptr;
     GstContext*             context   = nullptr;
     GstElement*             pipeline  = nullptr;
@@ -42,14 +47,15 @@ typedef struct _Data{
     ConnectedCallBackFunc     streamConnectionCB;
     ErrorCallBackFunc         streamErrorCB;
     StreamErrorHandlerRef     errorHandlerRef;
+    RtspManager*              instance;
 }RtspData;
 
-typedef std::shared_ptr<	RtspData> RtspDataRef;
+typedef std::shared_ptr<RtspData> RtspDataRef;
 
 class RtspManager : public IPStreamManager
 {
 public:
-    RtspManager();
+    RtspManager(std::string cameraTitle);
     virtual ~RtspManager();
     RtspManager(RtspManager const&)                        = delete;    // Copy construct
     RtspManager(RtspManager&&)                                = delete;   // Move construct
@@ -62,8 +68,8 @@ public:
     void reportFailedConnection();
     
     bool isStream(CamParamsEncryptionRef camAuthRef);
-    static void setActiveCamNum( int camNum) { activeCamNum = camNum; } 
-    static int  getActiveCamNum() { return activeCamNum; }
+    void setActiveCamNum( int camNum) { activeCamNum = camNum; } 
+    int  getActiveCamNum() { return activeCamNum; }
 
     virtual ApiStatus connectToIPCam(CamParamsEncryptionRef camAuthRef) override;
     virtual ApiStatus testConnection()  override;
@@ -92,8 +98,10 @@ public:
 
 protected:
  
-    static int activeCamNum;    
+    int activeCamNum;    
     static int callCount;
+    std::mutex data_mutex;
+   
     RtspDataRef dataRef;
     GstRTSPUrl connection_info = {
         GST_RTSP_LOWER_TRANS_TCP,

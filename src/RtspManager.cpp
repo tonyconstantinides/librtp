@@ -11,50 +11,35 @@
 #include "RtspManager.hpp"
 #include "Common.hpp"
 #include "CamParamsEncryption.hpp"
+#include "CamNotificationDefs.hpp"
 #include <memory>
 
-//RtspManagerRef RtspManager::instance = nullptr;
-int RtspManager::activeCamNum = 0;    
+using namespace Jetpack::Foundation;
+
 int RtspManager::callCount    = 0;
+//std::mutex RtspManager::data_mutex;
 
-//RtspManagerRef RtspManager::createInstance()
-//{
-//     struct _RtspManager : RtspManager {
-//            _RtspManager()
-//            : RtspManager() {}
-//     };
-//}
 
-RtspManager::RtspManager()
+RtspManager::RtspManager(std::string cameraTitle)
 : IPStreamManager()
 {
     logdbg("***************************************");
     logdbg("Entering RtspManager constructor.......");
     callCount++;
-    if (callCount == 1)
-    {
-       logdbg("***************************************");
-       logdbg("Creating first instance of RtspManager");
-       logdbg("***************************************");   
-    } else if (callCount == 2)
-    {
-       logdbg("***************************************");
-       logdbg("Creating second instance of RtspManager");
-       logdbg("***************************************");
-    } else if (callCount == 3)
-    {
-       logdbg("***************************************");
-       logdbg("Creating third instance of RtspManager");
-       logdbg("***************************************");
-    }  else if (callCount == 4)
-    {
-       logdbg("***************************************");
-       logdbg("Creating fourth instance of RtspManager");
-       logdbg("***************************************");
-    } 
-    gst_init (0, nullptr);
+    //static dispatch_once_t onceToken;
+    // dispatch_once(&onceToken, ^{
+    //   g_mutex_init(data_mutex);
+   // });
+    
+    std::lock_guard<std::mutex> lock(data_mutex);
     dataRef = std::make_shared<RtspData>();
     dataRef->errorHandlerRef = std::make_shared<StreamErrorHandler>();
+    dataRef->cameraTitle = cameraTitle;
+    logdbg("Creating a RtspManager Object to hold the videopipeline for  " << cameraTitle);
+
+  
+    gst_init (0, nullptr);
+
     logdbg("Leaving RtspManager constructor.......");
     logdbg("***************************************");
 }
@@ -63,12 +48,15 @@ RtspManager::~RtspManager()
 {
     logdbg("***************************************");
     logdbg("Entering RtspManager destructor.......");
-    //instance.reset();
-    //instance   = nullptr;
-    dataRef->errorHandlerRef.reset();
-    dataRef->errorHandlerRef = nullptr;
-    dataRef.reset();
-    dataRef = nullptr;
+    std::lock_guard<std::mutex> lock(data_mutex);
+    if (dataRef)
+    {    
+        
+        dataRef->errorHandlerRef.reset();
+        dataRef->errorHandlerRef = nullptr;
+        dataRef.reset();
+        dataRef = nullptr;
+    }
     logdbg("Leaving RtspManager destructor.......");
     logdbg("***************************************");
 }
@@ -87,6 +75,9 @@ ApiStatus RtspManager::connectToIPCam( CamParamsEncryptionRef camAuthRef)
 {
     logdbg("***************************************");
     logdbg("Entering connectToIPCam.......");
+    std::lock_guard<std::mutex> lock(data_mutex);
+    dataRef->instance = this;
+
     GstRTSPResult result;
     GstRTSPAuthMethod method = GST_RTSP_AUTH_DIGEST;
     assignAuth(camAuthRef);
@@ -168,6 +159,7 @@ ApiStatus RtspManager::connectToIPCam( CamParamsEncryptionRef camAuthRef)
        logdbg("Warning query is NULL in RtspManager");
 
     logdbg("Setting the connection url");
+  
     dataRef->connectionUrl =  new  gchar[connection_url.length() + 1];
     std::strncpy( dataRef->connectionUrl ,  connection_url.c_str(), connection_url.length());
     dataRef->connectionUrl[connection_url.length()] = '\0';
@@ -177,12 +169,13 @@ ApiStatus RtspManager::connectToIPCam( CamParamsEncryptionRef camAuthRef)
     dataRef->cameraGuid            = cameraGuid;
     dataRef->cakeStreamingUrl      = cakeStreamingUrl;
     dataRef->cameraStatus          = cameraStatus;
+    logdbg("camera Title: "        << dataRef->cameraTitle);
     logdbg("cameraGuid is: "       << dataRef->cameraGuid);
     logdbg("cakeStreamingUrl is: " << dataRef->cakeStreamingUrl);
     logdbg("cameraStatus is: "     << dataRef->cameraStatus);
     logdbg("Connection url is: "   << dataRef->connectionUrl);
     logdbg("----------------------------------------------------------------");
-  
+
     logdbg("Connection url set!");
     ApiState = testConnection();
     if (ApiState == ApiStatus::OK)
@@ -210,6 +203,8 @@ ApiStatus RtspManager::testConnection()
         return errorApiState("RtspManager::gst_rtsp_connection_get_write_socket failed!");
     }
     */
+    std::lock_guard<std::mutex> lock(data_mutex);
+
     dataRef->url =  gst_rtsp_connection_get_url(dataRef->connection);
     if (dataRef->url == NULL)
     {
@@ -232,6 +227,7 @@ ApiStatus RtspManager::testConnection()
     {
         return errorApiState("RtspManager::gst_rtsp_connection_get_url failed for host!");
     }
+  
     logdbg("Freeing the test connection........");
     // free the test client connection objects
     gst_rtsp_connection_close(dataRef->connection);
@@ -241,21 +237,17 @@ ApiStatus RtspManager::testConnection()
 
 void   RtspManager::reportFailedConnection()
 {
+    std::lock_guard<std::mutex> lock(data_mutex);
     dataRef->errorHandlerRef->errorMsg = "Cam Unfound and unable to connect";
     dataRef->errorHandlerRef->category = ErrorCategoryDetected::UNKNOWN;
     dataRef->errorHandlerRef->reported  = ErrorCategoryReported::CAM_DISCOVERY_FAILED;
     
     logdbg("-----------------------------------------");
     logdbg("Calling the onError callback");
-    logdbg("Camara Guid is: "      << cameraGuid.c_str());
+    logdbg("Camera Title is: "     << dataRef->cameraTitle);
+    logdbg("Camara Guid is: "      << dataRef->cameraGuid.c_str());
     logdbg("Camara Error Msg is: " << dataRef->errorHandlerRef->errorMsg.c_str());
-    StreamManager::setLastErrorCategoryDetected( dataRef->errorHandlerRef->category );
-    StreamManager::setLastErrorCategoryReported( dataRef->errorHandlerRef->reported  );
-    StreamManager::setLastCameraGuid( cameraGuid );
-    StreamManager::setLastCameraErrorMsg( dataRef->errorHandlerRef->errorMsg );
-    StreamManager::setLastCameraStatus("unable to find cam");
     dataRef->streamErrorCB();
-
     logdbg("-----------------------------------------");
 }
 
@@ -301,34 +293,25 @@ ApiStatus RtspManager::startLoop()
     logdbg("***************************************");
     logdbg("Entering startLoop.......");
     logdbg("Creating the main loop...");
-    static dispatch_once_t newToken;
-    dispatch_once(&newToken, ^{
-   //      dataRef->main_loop = g_main_loop_new (NULL, FALSE);
-    });
+    std::lock_guard<std::mutex> lock(data_mutex);
+
     // add a signal on the bus for messages
     dataRef->bus = gst_element_get_bus( dataRef->pipeline);
-    g_signal_connect (dataRef->bus, "message",  G_CALLBACK (RtspManager::bus_call), &dataRef);
-    /*
+    dataRef->msg = gst_bus_pop_filtered(dataRef->bus, GST_MESSAGE_ANY);
+    //g_signal_connect (dataRef->bus, "message",  G_CALLBACK (RtspManager::bus_call), &dataRef);
     gst_bus_set_sync_handler(dataRef->bus,
                               &RtspManager::busSyncHandler,
                               &dataRef,  
                               &RtspManager::destroyNotify);
-    */
-    gst_bus_add_signal_watch_full (dataRef->bus, G_PRIORITY_DEFAULT);
-    dataRef->msg = gst_bus_pop_filtered (dataRef->bus, GST_MESSAGE_ANY);
+
+    //gst_bus_add_signal_watch_full (dataRef->bus, G_PRIORITY_DEFAULT);
     // Start playing
     GstStateChangeReturn statechange = gst_element_set_state (dataRef->pipeline, GST_STATE_PLAYING);
     if (statechange == GST_STATE_CHANGE_FAILURE)
     {
         return errorApiState("RtspManager::Error calling gst_element_set_state()");
     }
-    static dispatch_once_t loopToken;
-    dispatch_once(&loopToken, ^{
-  //    logdbg("-------------------------------------------------------");
-  //    logdbg("Main Event Gstream loop not running so start it!");
-  //    logdbg("-------------------------------------------------------");
-//      g_main_loop_run( dataRef->main_loop );
-    });
+
     logdbg("Exiting startLoop.......");
     logdbg("***************************************");
     return ApiState;
@@ -339,23 +322,16 @@ GstBusSyncReply RtspManager::busSyncHandler(GstBus *bus,
                             gpointer user_data)
 {
     logdbg("Entering busSyncHandler loop for a particular camera thread");
-    logdbg("Making a bus call from the SyncHandler");
-
-    //RtspData*  new_pointer =  (RtspData*)(user_data);
-    //if (!new_pointer)
-    //{
-     //   logdbg("Pointer is NULL for gpointer in  RtspManager::busSyncHandler!");
-    //    return GST_BUS_ASYNC;
-    //} else
-    //{    
-        //RtspDataRef appRef(new_pointer);
-    processMsgType(bus, msg, NULL);         
-   
-
-        // processMsgType( bus, message, NULL);
-    //}
+    RtspData*    ptr = (RtspData*)user_data;
+    if (ptr == NULL)
+    {
+       logdbg("Raw Pointer is NULL for gpointer in  RtspManager::busSyncHandler!");
+        return GST_BUS_ASYNC;
+    }    
+    logdbg("For this camera instance data: " <<  ptr->getptr()->cameraTitle);      
+    processMsgType(bus, msg, ptr->getptr());         
     logdbg("Leaving busSyncHandler loop for a particular camera thread");
-    return GST_BUS_ASYNC;
+    return GST_BUS_DROP;
 }
 
 void RtspManager::destroyNotify(gpointer data)
@@ -365,8 +341,11 @@ void RtspManager::destroyNotify(gpointer data)
 
 ApiStatus RtspManager::cleanUp()
 {
-    gst_element_set_state (dataRef->pipeline, GST_STATE_NULL);
-    gst_bus_remove_signal_watch(dataRef->bus);
+ 
+    //gst_bus_remove_signal_watch(dataRef->bus);
+   std::lock_guard<std::mutex> lock(data_mutex);
+
+  gst_element_set_state (dataRef->pipeline, GST_STATE_NULL);
 
     if (dataRef->msg)
         gst_message_unref (dataRef->msg);
@@ -396,7 +375,7 @@ ApiStatus RtspManager::cleanUp()
 
      if (dataRef->connectionUrl)
          g_free(dataRef->connectionUrl);
-    
+
     // now remove signals
      ApiState =  removeCallbacks();
     free(connection_info.user);
@@ -412,7 +391,8 @@ ApiStatus RtspManager::createElements()
 {
     logdbg("***************************************");
     logdbg("Enter createElements");
-    
+    std::lock_guard<std::mutex> lock(data_mutex);
+
     dataRef->pipeline     = gst_pipeline_new("pipeline");
     dataRef->rtpbin       =  gst_element_factory_make ( "rtpbin", "rtpbin" );
     dataRef->rtspsrc      = gst_element_factory_make ("rtspsrc", "source");
@@ -504,6 +484,7 @@ ApiStatus RtspManager::createElements()
     {
         return fatalApiState("udpsink element could not be created!");
     }
+
     logdbg("Leaving createElements");
     logdbg("***************************************");
     return ApiState;
@@ -512,14 +493,15 @@ ApiStatus RtspManager::createElements()
 ApiStatus  RtspManager::setElementsProperties()
 {
     logdbg("***************************************");
+    std::lock_guard<std::mutex> lock(data_mutex);
+
     logdbg("Entering setElementsProperties");
-     g_object_set( G_OBJECT (dataRef->rtpbin),
+    g_object_set( G_OBJECT (dataRef->rtpbin),
                  "name",         "rtpbin",
                 NULL);
     // setting properties on rtspsrc
     logdbg("Setting url connection:");
     logdbg(  connection_url.c_str() );
-    
     g_object_set( G_OBJECT (dataRef->rtspsrc),
                  "location",            connection_url.c_str(),
                  "ntp-sync",            FALSE,
@@ -572,6 +554,7 @@ ApiStatus  RtspManager::setElementsProperties()
                  "sync",        FALSE,
                  "async",       FALSE,
                  NULL);
+
     logdbg("Cake box streaming url is : " << "127.0.0.1:" << portNum);
     logdbg("Leaving setElementsProperties");
     logdbg("***************************************");
@@ -581,8 +564,10 @@ ApiStatus  RtspManager::setElementsProperties()
 ApiStatus RtspManager::addElementsToBin()
 {
     logdbg("***************************************");
-    logdbg("Entering addElementsToBin");
+    std::lock_guard<std::mutex> lock(data_mutex);
 
+    logdbg("Entering addElementsToBin");
+   
      if (gst_bin_add(GST_BIN(dataRef->rtpbin),   dataRef->rtspsrc ))
     {
         logdbg("rtspsrc added to rtpbin!");
@@ -655,6 +640,7 @@ ApiStatus RtspManager::addElementsToBin()
     {
         return errorApiState("Unable to add rtpbin to the pipeline!");
     }
+
     logdbg("Leaving addElementsToBin");
     logdbg("***************************************");
     return ApiState;
@@ -663,9 +649,10 @@ ApiStatus RtspManager::addElementsToBin()
 ApiStatus  RtspManager::linkElements()
 {
     logdbg("***************************************");
-    logdbg("Enter  linkElements");
+    std::lock_guard<std::mutex> lock(data_mutex);
 
-    
+    logdbg("Enter linkElements");
+
     if (gst_element_link(dataRef->queue1, dataRef->rtph264depay))
     {
         logdbg("queue1 linked to rtph264depay .....");
@@ -719,7 +706,10 @@ ApiStatus  RtspManager::linkElements()
 ApiStatus RtspManager::addCallbacks()
 {
     logdbg("***************************************");
-    logdbg("Adding  callbacks .....");
+    std::lock_guard<std::mutex> lock(data_mutex);
+
+
+    logdbg("Adding  callbacks  for " << dataRef->cameraTitle);
     g_signal_connect (dataRef->rtpbin, "pad-added", G_CALLBACK (RtspManager::rtpbin_pad_added_cb), &dataRef);
     // add dynamic pads to connect them when added
     logdbg("Adding Rtspsrc  callbacks......");
@@ -729,6 +719,7 @@ ApiStatus RtspManager::addCallbacks()
                       G_CALLBACK(RtspManager::rtspsrc_pad_removed_cb), &dataRef);
     g_signal_connect (dataRef->rtspsrc, "no-more-pads",
                       G_CALLBACK(RtspManager::rtspsrc_no_more_pads_cb), &dataRef);
+ 
     logdbg("Leaving addCallbacks().....");
     logdbg("***************************************");
     return ApiState;
@@ -952,35 +943,76 @@ void RtspManager::processMsgType(GstBus *bus, GstMessage* msg, RtspDataRef appRe
        logdbg("Somethign wrong Msg is NULL!");
        return;
     } 
+
     switch (GST_MESSAGE_TYPE (msg))
     {
         case GST_MESSAGE_UNKNOWN:
             printMsg(msg,"GST_MESSAGE_UNKNOWN");
             break;
             
-        case GST_MESSAGE_EOS: {
+        case GST_MESSAGE_EOS: 
             printMsg(msg, " GST_MESSAGE_EOS");
             logdbg ("End of stream\n");
             //g_main_loop_quit ( appRef->main_loop );
             break;
-        }
-        case GST_MESSAGE_ERROR: {
+        case GST_MESSAGE_ERROR: 
             printMsg(msg, " GST_MESSAGE_ERROR");
             if (appRef)
             {
+                // set to defaults, reset by the error handler
                 appRef->errorHandlerRef->errorMsg = "";
                 appRef->errorHandlerRef->category = ErrorCategoryDetected::UNKNOWN;
                 appRef->errorHandlerRef->reported = ErrorCategoryReported::CLEAR;
+                // process the error handler
                 appRef->errorHandlerRef->processErrorState(msg);
+
                 logdbg("-----------------------------------------");
-                logdbg("Calling the onError callback");
+                logdbg("Sending the onError Notification");
                 logdbg("Camara Guid is: "      << appRef->cameraGuid);
                 logdbg("Camara Error Msg is: " << appRef->errorHandlerRef->errorMsg);
-                StreamManager::setLastCameraErrorMsg( appRef->errorHandlerRef->errorMsg );
-                StreamManager::setLastCameraGuid(  appRef->cameraGuid );
-                StreamManager::setLastErrorCategoryDetected( appRef->errorHandlerRef->category );
-                StreamManager::setLastErrorCategoryReported(  appRef->errorHandlerRef->reported );
-                StreamManager::setLastCameraStatus( "unable to find" );
+          
+                Notification::UserInfo info;
+                info[IPCamUnrecoverableError]   = Value::Create(appRef->errorHandlerRef->errorMsg);    
+                info[IPCamGUID]                 = Value::Create(appRef->cameraGuid);
+                info[IPCamSeq]                  = Value::Create(appRef->cameraTitle);
+                if ( appRef->errorHandlerRef->category == ErrorCategoryDetected::UNKNOWN)
+                {
+                        info[IPCamErrorCategory] = Value::Create(IPCamDisoveryFailed);
+                        logdbg("Camara ErrorCategory is: " << IPCamDisoveryFailed);            
+                        NotificationCenter::DefaultCenter()->postNotification(  Notification::Make( IPCamNotification , NULL, info));
+                }
+                 else if( appRef->errorHandlerRef->category == ErrorCategoryDetected::CORE)
+                {
+                        info[IPCamErrorCategory] = Value::Create(IPCamMiscError);
+                        logdbg("Camara ErrorCategory is: " << IPCamMiscError);            
+                        NotificationCenter::DefaultCenter()->postNotification(Notification::Make( IPCamNotification , NULL, info));
+                } 
+                else if(appRef->errorHandlerRef->category   == ErrorCategoryDetected::LIBRARY)
+                {
+                        info[IPCamErrorCategory]             = Value::Create(IPCamMiscError);
+                        logdbg("Camara ErrorCategory is: " << IPCamMiscError);            
+                        NotificationCenter::DefaultCenter()->postNotification(Notification::Make( IPCamNotification , NULL, info));
+                }
+                else if (appRef->errorHandlerRef->category   == ErrorCategoryDetected::RESOURCE)
+                {
+                        info[IPCamErrorCategory]             = Value::Create(IPCamAuthFailed);
+                        logdbg("Camara ErrorCategory is: " << IPCamAuthFailed);            
+                        NotificationCenter::DefaultCenter()->postNotification(Notification::Make( IPCamNotification , NULL, info));
+                } 
+                else if (appRef->errorHandlerRef->category   == ErrorCategoryDetected::STREAM)
+                {
+                        info[IPCamErrorCategory]             = Value::Create(IPCamStreamStopped);
+                        logdbg("Camara ErrorCategory is: " << IPCamStreamStopped);            
+                        NotificationCenter::DefaultCenter()->postNotification(Notification::Make( IPCamNotification , NULL, info));
+                }
+                 else
+                {
+                    logdbg("Serious Error, Error category canot be NULL!");
+                }
+                logdbg("-----------------------------------------");
+                logdbg("-----------------------------------------");
+                logdbg("Calling the OnError callback");
+
                 if (appRef->streamErrorCB)
                 {    
                     appRef->streamErrorCB( );
@@ -990,11 +1022,13 @@ void RtspManager::processMsgType(GstBus *bus, GstMessage* msg, RtspDataRef appRe
                     logdbg("Unable to call onError callback!");
                 }   
                 logdbg("-----------------------------------------");
-            } else {
+            }
+            else 
+            {
                  logdbg("No access to apRefd in GST_MESSAGE_ERROR handler");
             }
+    
             break;
-        }
         case GST_MESSAGE_WARNING:
             printMsg(msg, "GST_MESSAGE_WARNING");
             break;
@@ -1007,20 +1041,34 @@ void RtspManager::processMsgType(GstBus *bus, GstMessage* msg, RtspDataRef appRe
         case GST_MESSAGE_BUFFERING:
             printMsg(msg, "GST_MESSAGE_BUFFERING");
             break;
-        case GST_MESSAGE_STATE_CHANGED: {
+        case GST_MESSAGE_STATE_CHANGED:
+            {
             /* We are only interested in state-changed messages from the pipeline */
-            const gchar* srcObj    = GST_MESSAGE_SRC_NAME(msg);
+             const gchar* srcObj    = GST_MESSAGE_SRC_NAME(msg);
+             GstState old_state, new_state, pending_state;
+         
             if (std::strcmp(srcObj, "pipeline") == 0)
             {
-               GstState old_state, new_state, pending_state;
                 gst_message_parse_state_changed (msg, &old_state, &new_state, &pending_state);
                 logdbg ("Pipeline state changed from "
                             << gst_element_state_get_name (old_state)
                             <<  " to "
                             << gst_element_state_get_name (new_state));
+            } 
+            else if (std::strcmp(srcObj, "sink") == 0) 
+            {
+                gst_message_parse_state_changed (msg, &old_state, &new_state, &pending_state);
+                logdbg("Sink changed from "
+                            << gst_element_state_get_name (old_state)
+                            <<  " to "
+                            << gst_element_state_get_name (new_state));
+            } 
+            else
+            {
+                logdbg(srcObj << " GST_MESSAGE_STATE_CHANGE");
             }
-            break;
         }
+            break;
         case GST_MESSAGE_STATE_DIRTY:
             printMsg(msg, "GST_MESSAGE_STATE_DIRTY");
             break;
@@ -1086,9 +1134,6 @@ void RtspManager::processMsgType(GstBus *bus, GstMessage* msg, RtspDataRef appRe
             break;
         case GST_MESSAGE_STREAM_START:
             printMsg(msg, "GST_MESSAGE_STREAM_START");
-            // hardcoded for now
-            //url = "rtp://127.0.0.1:8000";
-          
             if (appRef)
             {    
                 logdbg("----------------------------------------------");
@@ -1096,23 +1141,29 @@ void RtspManager::processMsgType(GstBus *bus, GstMessage* msg, RtspDataRef appRe
                 logdbg("camera Guid is:      "  <<  appRef->cameraGuid);
                 logdbg("cakeStreamingURL is: "  <<  appRef->cakeStreamingUrl);
                 logdbg("IPCam status is :    "  <<  appRef->cameraStatus);
-                StreamManager::setLastCameraGuid(  appRef->cameraGuid );
-                StreamManager::setLastCameraStatus( appRef->cameraStatus );
-            
-               int portNum = 0;
-               if (getActiveCamNum() == 1)
+                            int portNum = 0;
+               if (appRef->instance->getActiveCamNum() == 1)
                   portNum = 8000;
-               else if (getActiveCamNum() == 2)
+               else if (appRef->instance->getActiveCamNum() == 2)
                    portNum = 8250;
-                else if (getActiveCamNum() == 3)
+                else if (appRef->instance->getActiveCamNum() == 3)
                     portNum = 8500;
-                else if (getActiveCamNum() == 4)
+                else if (appRef->instance->getActiveCamNum() == 4)
                     portNum = 8750;
                 // now add it to the streaming url
                 appRef->cakeStreamingUrl.append(":");  
                 appRef->cakeStreamingUrl.append( std::to_string(portNum));
-                StreamManager::setLastCakeboxStreamingUrl( appRef->cakeStreamingUrl );
-           
+                
+                // send out notifications
+                logdbg("--------------------------------------------------");
+                logdbg("Sending onConnected notification: ");
+                logdbg("---------------------------------------------------");
+                Notification::UserInfo info;
+                info[IPCamConnectionSuccess] = Value::Create(appRef->cameraStatus);
+                info[IPCamGUID]              = Value::Create(appRef->cameraGuid);
+                info[IPCamCakeStreamingURL]  = Value::Create(appRef->cakeStreamingUrl);
+                info[IPCamStatus]            = Value::Create(appRef->cameraStatus);
+                NotificationCenter::DefaultCenter()->postNotification(Notification::Make( IPCamNotification , NULL, info));
                 appRef->streamConnectionCB();
                 logdbg("connected() callback finished?");  
                 logdbg("----------------------------------------------");
@@ -1137,9 +1188,6 @@ void RtspManager::processMsgType(GstBus *bus, GstMessage* msg, RtspDataRef appRe
             break;
         case GST_MESSAGE_ANY:
             printMsg(msg, "GST_MESSAGE_ANY");
-            break;
-        default:
-            logerr() << "RtspManager::Error, something wrong should never processed this unknown messge!";
             break;
     }   
 }

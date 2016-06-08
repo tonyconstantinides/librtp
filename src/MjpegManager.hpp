@@ -38,7 +38,7 @@ typedef std::shared_ptr<MjpegData> MjpegDataRef;
 class MjpegManager : public IPStreamManager
 {
 public:
-    static  MjpegManagerRef  createNewMjpegManager();
+    MjpegManager();
     virtual ~MjpegManager();
     MjpegManager(MjpegManager const&)                  = delete;    // Copy construct
     MjpegManager(MjpegManager&&)                       = delete;   // Move construct
@@ -50,8 +50,6 @@ public:
     virtual ApiStatus setupPipeLine() override;
     virtual ApiStatus startLoop() override;
 protected:
-    MjpegManager();
-    static   MjpegManagerRef instance;
     MjpegDataRef  dataRef;
     virtual ApiStatus  createElements() override;
     virtual ApiStatus  addElementsToBin() override;

@@ -14,6 +14,7 @@ using namespace Jetpack::Foundation;
 
 ApiStatus StreamErrorHandler::processErrorState(GstMessage* msg )
 {
+    
     gchar  *debug;
     GError *error;
     gst_message_parse_error (msg, &error, &debug);

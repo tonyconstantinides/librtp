@@ -11,6 +11,7 @@
 
 #include "Common.hpp"
 
+typedef std::shared_ptr<StreamErrorHandler> StreamErrorHandlerRef;
 
 class StreamErrorHandler
 {
@@ -22,7 +23,6 @@ public:
     StreamErrorHandler& operator=(StreamErrorHandler const&)  = delete;  // Copy assign
     StreamErrorHandler& operator=(StreamErrorHandler&&)       = default;  // Move assign
     ApiStatus processErrorState(GstMessage* msg );
-
     std::string errorMsg;
     ErrorCategoryDetected category;
     ErrorCategoryReported reported;
