@@ -38,6 +38,10 @@ enum  class ErrorCategoryReported { CLEAR, CAM_DISCOVERY_FAILED, AUTH_FAILED, ST
 #define RTSP_LATENCY 2
 #define RTSP_BUFFER_MODE 0
 #define RTSP_RTP_BLOCKSIZE 50000
+#define IPCAM_ONE "IPCAM 1"
+#define IPCAM_TWO "IPCAM 2"
+#define IPCAM_THREE "IPCAM 3"
+#define IPCAM_FOUR "IPCAM 4"
 
 class StreamManager;
 class RtspManager;

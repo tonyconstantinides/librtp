@@ -129,7 +129,7 @@ void gst_player::thread_loop_run(gpointer data)
       logdbg("----------------------------------------------------------");
       logdbg("Running Event loop for Camera One Thread.......");
       logdbg("----------------------------------------------------------");
-      playerRef->createVideoPipeline("IPCam 1");
+      playerRef->createVideoPipeline(IPCAM_ONE);
       g_main_loop_run(m_mainLoop_cam1);
       g_thread_exit(0);
    } else if (camCount == 2) 
@@ -140,7 +140,7 @@ void gst_player::thread_loop_run(gpointer data)
        worker_context_cam2 = g_main_context_new();
        g_main_context_push_thread_default(worker_context_cam2);
        m_mainLoop_cam2 = g_main_loop_new(worker_context_cam2, FALSE);
-       playerRef->createVideoPipeline("IPCam 2");
+       playerRef->createVideoPipeline(IPCAM_TWO);
        logdbg("----------------------------------------------------------");
        logdbg("Running Event loop for Camera Two Thread.......");
        logdbg("----------------------------------------------------------");
@@ -154,7 +154,7 @@ void gst_player::thread_loop_run(gpointer data)
        worker_context_cam3 = g_main_context_new();
        g_main_context_push_thread_default(worker_context_cam3);
        m_mainLoop_cam3 = g_main_loop_new(worker_context_cam3, FALSE);
-       playerRef->createVideoPipeline("IPCam 3");
+       playerRef->createVideoPipeline(IPCAM_THREE);
        logdbg("----------------------------------------------------------");
        logdbg("Running Event loop for Camera Three Thread.......");
        logdbg("----------------------------------------------------------");
@@ -168,7 +168,7 @@ void gst_player::thread_loop_run(gpointer data)
         worker_context_cam4 = g_main_context_new();
         g_main_context_push_thread_default(worker_context_cam4);
         m_mainLoop_cam4 = g_main_loop_new(worker_context_cam4, FALSE);
-        playerRef->createVideoPipeline("IPCam 4");
+        playerRef->createVideoPipeline(IPCAM_FOUR);
         logdbg("----------------------------------------------------------");
         logdbg("Running Event loop for Camera Four Thread.......");
         logdbg("----------------------------------------------------------");
@@ -301,13 +301,26 @@ void gst_player::connectBlock(CamParamsEncryptionRef    camAuthRef,
               int size = streamList.size();
               logdbg("Size of StreamList is : " << std::to_string(size));
           
-              //std::mutex rtpMangerRef_inner_mutex;
-              //std::lock_guard<std::mutex> rtp_inner_guard(rtpMangerRef_inner_mutex);
               rtspManagerRef->validStreamMethod(true);
               rtspManagerRef->activateStream(true); // this is the prime stream
               // set the active Cam Num
               logdbg("Setting active cam num in RtspManager!");
-              rtspManagerRef->setActiveCamNum(size);
+              if (std::strcmp(CameraTitle.c_str(), IPCAM_ONE) == 0)
+              {
+                rtspManagerRef->setActiveCamNum(1);
+              }
+              else if (std::strcmp(CameraTitle.c_str(), IPCAM_TWO) == 0)
+              {
+                  rtspManagerRef->setActiveCamNum(2);
+              }
+              else if (std::strcmp(CameraTitle.c_str(), IPCAM_THREE) == 0)
+              {
+                  rtspManagerRef->setActiveCamNum(3);
+              }         
+              else if (std::strcmp(CameraTitle.c_str(), IPCAM_FOUR) == 0)
+              {
+                  rtspManagerRef->setActiveCamNum(4);
+              }   
               rtspManagerRef->addConnectionCallback(streamStarted);
               // old school programmiong with no exceptions, check every return
               rtspManagerRef->addErrorCallback(streamError);
@@ -349,21 +362,6 @@ void gst_player::connectBlock(CamParamsEncryptionRef    camAuthRef,
     }
     logdbg("Leaving gst_player::connectBlock.......");
 }
-
-
-
-/*
-StreamManagerRef StreamManager::instance   = nullptr;
-
-VideoDataList StreamManager::streamList = {};
-std::string StreamManager::cameraGuid = "";
-std::string StreamManager::cameraStatus = "";
-std::string StreamManager::cameraErrorMsg = "";
-std::string StreamManager::cakeboxStreamingUrl = "";
-ErrorCategoryDetected StreamManager::category = ErrorCategoryDetected::UNKNOWN;
-ErrorCategoryReported StreamManager::reported = ErrorCategoryReported::CLEAR; 
-int StreamManager::activeCamNum = 0;
-*/
 
 
 StreamManager::StreamManager()
