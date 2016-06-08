@@ -203,8 +203,7 @@ ApiStatus RtspManager::testConnection()
         return errorApiState("RtspManager::gst_rtsp_connection_get_write_socket failed!");
     }
     */
-    std::lock_guard<std::mutex> lock(data_mutex);
-
+  
     dataRef->url =  gst_rtsp_connection_get_url(dataRef->connection);
     if (dataRef->url == NULL)
     {
@@ -237,7 +236,6 @@ ApiStatus RtspManager::testConnection()
 
 void   RtspManager::reportFailedConnection()
 {
-    std::lock_guard<std::mutex> lock(data_mutex);
     dataRef->errorHandlerRef->errorMsg = "Cam Unfound and unable to connect";
     dataRef->errorHandlerRef->category = ErrorCategoryDetected::UNKNOWN;
     dataRef->errorHandlerRef->reported  = ErrorCategoryReported::CAM_DISCOVERY_FAILED;
@@ -343,8 +341,7 @@ ApiStatus RtspManager::cleanUp()
 {
  
     //gst_bus_remove_signal_watch(dataRef->bus);
-   std::lock_guard<std::mutex> lock(data_mutex);
-
+  
   gst_element_set_state (dataRef->pipeline, GST_STATE_NULL);
 
     if (dataRef->msg)
@@ -391,8 +388,7 @@ ApiStatus RtspManager::createElements()
 {
     logdbg("***************************************");
     logdbg("Enter createElements");
-    std::lock_guard<std::mutex> lock(data_mutex);
-
+ 
     dataRef->pipeline     = gst_pipeline_new("pipeline");
     dataRef->rtpbin       =  gst_element_factory_make ( "rtpbin", "rtpbin" );
     dataRef->rtspsrc      = gst_element_factory_make ("rtspsrc", "source");
@@ -493,8 +489,7 @@ ApiStatus RtspManager::createElements()
 ApiStatus  RtspManager::setElementsProperties()
 {
     logdbg("***************************************");
-    std::lock_guard<std::mutex> lock(data_mutex);
-
+    
     logdbg("Entering setElementsProperties");
     g_object_set( G_OBJECT (dataRef->rtpbin),
                  "name",         "rtpbin",
@@ -564,8 +559,7 @@ ApiStatus  RtspManager::setElementsProperties()
 ApiStatus RtspManager::addElementsToBin()
 {
     logdbg("***************************************");
-    std::lock_guard<std::mutex> lock(data_mutex);
-
+    
     logdbg("Entering addElementsToBin");
    
      if (gst_bin_add(GST_BIN(dataRef->rtpbin),   dataRef->rtspsrc ))
@@ -649,7 +643,6 @@ ApiStatus RtspManager::addElementsToBin()
 ApiStatus  RtspManager::linkElements()
 {
     logdbg("***************************************");
-    std::lock_guard<std::mutex> lock(data_mutex);
 
     logdbg("Enter linkElements");
 
@@ -706,8 +699,7 @@ ApiStatus  RtspManager::linkElements()
 ApiStatus RtspManager::addCallbacks()
 {
     logdbg("***************************************");
-    std::lock_guard<std::mutex> lock(data_mutex);
-
+  
 
     logdbg("Adding  callbacks  for " << dataRef->cameraTitle);
     g_signal_connect (dataRef->rtpbin, "pad-added", G_CALLBACK (RtspManager::rtpbin_pad_added_cb), &dataRef);
