@@ -47,6 +47,7 @@ public:
 
     void setup();
     void cleanup();
+    void killCam(int CamNum);
     static void thread_loop_run(gpointer data);
     void play(int callCount);
     void createVideoPipeline(std::string CameraTitle);
@@ -201,11 +202,44 @@ void gst_player::cleanup()
       g_main_context_unref(worker_context_cam4); 
     }  
 
-    if (gst_player::queue)    
-          dispatch_release(gst_player::queue);
-
    logdbg("Leaviung gst_player::cleanup()");
 }
+
+void gst_player::killCam(int CamNum)
+{
+ logdbg("Entering gst_player::killCam() for CamNum " << CamNum);
+ if (CamNum == 1)
+ {
+      logdbg("Cleanup worker_context_cam1!");    
+      g_main_loop_unref(m_mainLoop_cam1);
+      g_main_context_pop_thread_default(worker_context_cam1);
+      g_main_context_unref(worker_context_cam1); 
+ }
+ else if (CamNum == 2)
+ {
+      logdbg("Cleanup worker_context_cam2!");    
+      g_main_loop_unref(m_mainLoop_cam2);
+      g_main_context_pop_thread_default(worker_context_cam2);
+      g_main_context_unref(worker_context_cam2); 
+ } 
+ else if (CamNum == 3)
+ {
+      logdbg("Cleanup worker_context_cam3!");    
+      g_main_loop_unref(m_mainLoop_cam3);
+      g_main_context_pop_thread_default(worker_context_cam3);
+      g_main_context_unref(worker_context_cam3); 
+ }
+ else if (CamNum == 4)
+ {
+      logdbg("Cleanup worker_context_cam4!");    
+      g_main_loop_unref(m_mainLoop_cam4);
+      g_main_context_pop_thread_default(worker_context_cam4);
+      g_main_context_unref(worker_context_cam4); 
+ }
+
+ logdbg("Leaving gst_player::killCam() for CamNum " << CamNum);
+}
+
 
 void gst_player::setup()
 {
@@ -419,6 +453,26 @@ ApiStatus StreamManager::disconnectStream(CamParamsEncryptionRef camAuth)
             rtsp.reset();
             mjpeg.reset();
         }    
+        if (rtsp->getActiveCamNum()  == 1)
+        {
+           logdbg("Killing Stream for Camera One.......");
+           playerRef->killCam(1);
+        } 
+        else if  (rtsp->getActiveCamNum() == 2)
+        {
+           logdbg("Killing Stream for Camera Two.......");
+           playerRef->killCam(2);
+        } 
+        else if (rtsp->getActiveCamNum() == 3) 
+        {
+           logdbg("Killing Stream for Camera Three.......");
+           playerRef->killCam(3);
+        }  
+        else if (rtsp->getActiveCamNum() == 4)
+        {
+           logdbg("Killing Stream for Camera Four.......");
+           playerRef->killCam(4);
+        }  
     }
     guard.unlock();
 
