@@ -101,6 +101,8 @@ protected:
     int activeCamNum;    
     static int callCount;
     std::mutex data_mutex;
+    std::mutex mutex;
+
    
     RtspDataRef dataRef;
     GstRTSPUrl connection_info = {

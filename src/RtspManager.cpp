@@ -17,29 +17,23 @@
 using namespace Jetpack::Foundation;
 
 int RtspManager::callCount    = 0;
-//std::mutex RtspManager::data_mutex;
 
 
 RtspManager::RtspManager(std::string cameraTitle)
-: IPStreamManager()
+:  IPStreamManager()
 {
     logdbg("***************************************");
     logdbg("Entering RtspManager constructor.......");
+    std::unique_lock<std::mutex> guard(mutex, std::defer_lock);
+    guard.lock();
     callCount++;
-    //static dispatch_once_t onceToken;
-    // dispatch_once(&onceToken, ^{
-    //   g_mutex_init(data_mutex);
-   // });
-    
-    std::lock_guard<std::mutex> lock(data_mutex);
     dataRef = std::make_shared<RtspData>();
     dataRef->errorHandlerRef = std::make_shared<StreamErrorHandler>();
     dataRef->cameraTitle = cameraTitle;
     logdbg("Creating a RtspManager Object to hold the videopipeline for  " << cameraTitle);
-
-  
     gst_init (0, nullptr);
-
+    guard.unlock();
+  
     logdbg("Leaving RtspManager constructor.......");
     logdbg("***************************************");
 }
@@ -48,7 +42,8 @@ RtspManager::~RtspManager()
 {
     logdbg("***************************************");
     logdbg("Entering RtspManager destructor.......");
-    std::lock_guard<std::mutex> lock(data_mutex);
+    std::unique_lock<std::mutex> guard(mutex, std::defer_lock);
+    guard.lock();
     if (dataRef)
     {    
         
@@ -57,6 +52,7 @@ RtspManager::~RtspManager()
         dataRef.reset();
         dataRef = nullptr;
     }
+    guard.unlock();
     logdbg("Leaving RtspManager destructor.......");
     logdbg("***************************************");
 }
@@ -75,7 +71,9 @@ ApiStatus RtspManager::connectToIPCam( CamParamsEncryptionRef camAuthRef)
 {
     logdbg("***************************************");
     logdbg("Entering connectToIPCam.......");
-    std::lock_guard<std::mutex> lock(data_mutex);
+    std::unique_lock<std::mutex> guard(mutex, std::defer_lock);
+    guard.lock();
+
     dataRef->instance = this;
 
     GstRTSPResult result;
@@ -184,6 +182,8 @@ ApiStatus RtspManager::connectToIPCam( CamParamsEncryptionRef camAuthRef)
         logdbg("Test TCP/IP connection to IP Camera successful!");
         logdbg("----------------------------------------------------------------");
     }
+    guard.unlock();
+
     logdbg("Exiting connectToIPCam.......");
     logdbg("***************************************");
     return ApiState;
@@ -309,6 +309,51 @@ ApiStatus RtspManager::startLoop()
     {
         return errorApiState("RtspManager::Error calling gst_element_set_state()");
     }
+    // this might be too sounds ad the videopipiline is not setup yet
+    // but teh time the message is posted and the other app has read it the stream should be running
+    if (dataRef)
+    {    
+        logdbg("---------------------------------------------");
+        logdbg("Calling the connected() callback!!!!");
+        logdbg("camera Guid is:      "  <<  dataRef->cameraGuid);
+        logdbg("cakeStreamingURL is: "  <<  dataRef->cakeStreamingUrl);
+        logdbg("IPCam status is :    "  <<  dataRef->cameraStatus);
+                    int portNum = 0;
+       if (dataRef->instance->getActiveCamNum() == 1)
+          portNum = 8000;
+       else if (dataRef->instance->getActiveCamNum() == 2)
+           portNum = 8250;
+        else if (dataRef->instance->getActiveCamNum() == 3)
+            portNum = 8500;
+        else if (dataRef->instance->getActiveCamNum() == 4)
+            portNum = 8750;
+        // now add it to the streaming url
+        dataRef->cakeStreamingUrl.append(":");  
+        dataRef->cakeStreamingUrl.append( std::to_string(portNum));
+        
+        // send out notifications
+        logdbg("--------------------------------------------------");
+        logdbg("Sending onConnected notification: ");
+        logdbg("camera Title: "        << dataRef->cameraTitle);
+        logdbg("cameraGuid is: "       << dataRef->cameraGuid);
+        logdbg("cakeStreamingUrl is: " << dataRef->cakeStreamingUrl);
+        logdbg("cameraStatus is: "     << dataRef->cameraStatus);
+        logdbg("Connection url is: "   << dataRef->connectionUrl);
+        logdbg("----------------------------------------------------------------");
+
+         Notification::UserInfo info;
+        info[IPCamConnectionSuccess] = Value::Create(dataRef->cameraStatus);
+        info[IPCamGUID]              = Value::Create(dataRef->cameraGuid);
+        info[IPCamCakeStreamingURL]  = Value::Create(dataRef->cakeStreamingUrl);
+        info[IPCamStatus]            = Value::Create(dataRef->cameraStatus);
+        NotificationCenter::DefaultCenter()->postNotification(Notification::Make( IPCamNotification , NULL, info));
+        logdbg("Connected Notification for " << dataRef->cameraTitle  << " sent!");
+        dataRef->streamConnectionCB();
+        logdbg("connected() callback finished?");  
+        logdbg("----------------------------------------------");
+    } else {
+        logdbg("No access to the data structure cannot call the connected() callback!");
+    }
 
     logdbg("Exiting startLoop.......");
     logdbg("***************************************");
@@ -319,7 +364,6 @@ GstBusSyncReply RtspManager::busSyncHandler(GstBus *bus,
                             GstMessage *msg,
                             gpointer user_data)
 {
-    logdbg("Entering busSyncHandler loop for a particular camera thread");
     RtspData*    ptr = (RtspData*)user_data;
     if (ptr == NULL)
     {
@@ -328,7 +372,6 @@ GstBusSyncReply RtspManager::busSyncHandler(GstBus *bus,
     }    
     logdbg("For this camera instance data: " <<  ptr->getptr()->cameraTitle);      
     processMsgType(bus, msg, ptr->getptr());         
-    logdbg("Leaving busSyncHandler loop for a particular camera thread");
     return GST_BUS_DROP;
 }
 
@@ -402,7 +445,7 @@ ApiStatus RtspManager::createElements()
     
     if (dataRef->pipeline)
     {
-        logdbg("pipeline element created!");
+        logdbg("pipeline element created for " << dataRef->cameraTitle);
     }
     else
     {
@@ -411,7 +454,7 @@ ApiStatus RtspManager::createElements()
     
     if( dataRef->rtpbin)
     {
-        logdbg("rtpbin element created!");
+        logdbg("rtpbin element created for " <<  dataRef->cameraTitle);
     }
     else
     {
@@ -420,7 +463,7 @@ ApiStatus RtspManager::createElements()
  
     if (dataRef->rtspsrc)
     {
-        logdbg("rtspsrc element created!");
+        logdbg("rtspsrc element created for " <<  dataRef->cameraTitle);
     }
     else
     {
@@ -429,7 +472,7 @@ ApiStatus RtspManager::createElements()
 
     if (dataRef->queue1)
     {
-        logdbg("queue1 element created");
+        logdbg("queue1 element created for " << dataRef->cameraTitle);
     }
     else
     {
@@ -438,7 +481,7 @@ ApiStatus RtspManager::createElements()
     
     if (dataRef->rtph264depay)
     {
-        logdbg("rtph264depay element created!");
+        logdbg("rtph264depay element created for " <<  dataRef->cameraTitle);
     }
     else
     {
@@ -447,7 +490,7 @@ ApiStatus RtspManager::createElements()
     
     if (dataRef->queue2)
     {
-        logdbg("queue2 element created");
+        logdbg("queue2 element created for " << dataRef->cameraTitle);
     }
     else
     {
@@ -456,7 +499,7 @@ ApiStatus RtspManager::createElements()
     
     if (dataRef->mpegtsmux)
     {
-        logdbg("mpegtsmux element created!");
+        logdbg("mpegtsmux element created for " << dataRef->cameraTitle);
     }
     else
     {
@@ -465,7 +508,7 @@ ApiStatus RtspManager::createElements()
     
     if (dataRef->rtpmp2tpay)
     {
-         logdbg("rtpmp2tpay element created!");
+         logdbg("rtpmp2tpay element created for " << dataRef->cameraTitle);
     }
     else
     {
@@ -474,7 +517,7 @@ ApiStatus RtspManager::createElements()
    
     if (dataRef->udpsink )
     {
-        logdbg("udpsink element created!");
+        logdbg("udpsink element created for " << dataRef->cameraTitle);
     }
     else
     {
@@ -530,6 +573,7 @@ ApiStatus  RtspManager::setElementsProperties()
                  NULL);
 
     int portNum;
+    logdbg("portNum before camera calculation");
     if (getActiveCamNum() == 1)
         portNum = 8000;
     else if (getActiveCamNum() == 2)
@@ -550,7 +594,7 @@ ApiStatus  RtspManager::setElementsProperties()
                  "async",       FALSE,
                  NULL);
 
-    logdbg("Cake box streaming url is : " << "127.0.0.1:" << portNum);
+    logdbg("Cake box streaming url is : " << "127.0.0.1:" <<  std::to_string(portNum) << " for " <<  dataRef->cameraTitle);
     logdbg("Leaving setElementsProperties");
     logdbg("***************************************");
     return ApiState;
@@ -560,47 +604,47 @@ ApiStatus RtspManager::addElementsToBin()
 {
     logdbg("***************************************");
     
-    logdbg("Entering addElementsToBin");
+    logdbg("Entering addElementsToBin for " << dataRef->cameraTitle);
    
      if (gst_bin_add(GST_BIN(dataRef->rtpbin),   dataRef->rtspsrc ))
     {
-        logdbg("rtspsrc added to rtpbin!");
+        logdbg("rtspsrc added to rtpbin " << dataRef->cameraTitle);
     }
     else
     {
-        return errorApiState("Unable to add rtspsrc to rtpbin!");
+        return errorApiState("Unable to add rtspsrc to rtpbin ");
     }
     
     if (gst_bin_add(GST_BIN(dataRef->rtpbin), dataRef->queue1))
     {
-        logdbg("queue1 added to rtpbin!");
+        logdbg("queue1 added to rtpbin " << dataRef->cameraTitle);
     }
     else
     {
-        return errorApiState("Unable to add queue1 to rtpbin!");
+        return errorApiState("Unable to add queue1 to rtpbin");
     }
     
     if (gst_bin_add(GST_BIN(dataRef->rtpbin),   dataRef->rtph264depay ))
     {
-        logdbg("rtph264depay added to rtspbin!");
+        logdbg("rtph264depay added to rtspbin " << dataRef->cameraTitle);
     }
     else
     {
-        return errorApiState("Unable to add rtph264depay to rtpbin!");
+        return errorApiState("Unable to add rtph264depay to rtpbin");
     }
     
     if (gst_bin_add(GST_BIN(dataRef->rtpbin), dataRef->queue2))
     {
-        logdbg("queue2 added to tpbin!");
+        logdbg("queue2 added to tpbin for " << dataRef->cameraTitle);
     }
     else
     {
-        return errorApiState("Unable to add queue2 to rtpbin!");
+        return errorApiState("Unable to add queue2 to rtpbin ");
     }
     
     if (gst_bin_add(GST_BIN(dataRef->rtpbin), dataRef->mpegtsmux ))
     {
-        logdbg("rmpegtsmux added to rtspbin!");
+        logdbg("rmpegtsmux added to rtspbin for " << dataRef->cameraTitle);
     }
     else
     {
@@ -609,33 +653,33 @@ ApiStatus RtspManager::addElementsToBin()
     
     if (gst_bin_add(GST_BIN(dataRef->rtpbin),   dataRef->rtpmp2tpay ))
     {
-        logdbg("rtpmp2tpay added to rtspbin!");
+        logdbg("rtpmp2tpay added to rtspbin for " << dataRef->cameraTitle);
     }
    else
     {
-        return errorApiState( "Unable to add rtpmp2tpay to rtpbin!");
+        return errorApiState( "Unable to add rtpmp2tpay to rtpbin");
     }
     
     if (gst_bin_add(GST_BIN(dataRef->rtpbin),   dataRef->udpsink ))
     {
-        logdbg("udpsink added to rtspbin!");
+        logdbg("udpsink added to rtspbin for " << dataRef->cameraTitle);
     }
     else
     {
-        return errorApiState("Unable to add udpsink to rtpbin!");
+        return errorApiState("Unable to add udpsink to rtpbin");
     }
 
     
     if (gst_bin_add(GST_BIN(dataRef->pipeline),   dataRef->rtpbin ))
     {
-        logdbg("rtpbin added to pipeline!");
+        logdbg("rtpbin added to pipeline for " << dataRef->cameraTitle);
     }
     else
     {
         return errorApiState("Unable to add rtpbin to the pipeline!");
     }
 
-    logdbg("Leaving addElementsToBin");
+    logdbg("Leaving addElementsToBin for " <<  dataRef->cameraTitle);
     logdbg("***************************************");
     return ApiState;
 }
@@ -648,7 +692,7 @@ ApiStatus  RtspManager::linkElements()
 
     if (gst_element_link(dataRef->queue1, dataRef->rtph264depay))
     {
-        logdbg("queue1 linked to rtph264depay .....");
+        logdbg("queue1 linked to rtph264depay...... for " <<  dataRef->cameraTitle);
     }
     else
     {
@@ -657,7 +701,7 @@ ApiStatus  RtspManager::linkElements()
     
     if (gst_element_link(dataRef->rtph264depay, dataRef->queue2))
     {
-           logdbg("rtph264depay linked to queue2 .....");
+           logdbg("rtph264depay linked to queue2 ..... for " << dataRef->cameraTitle);
     }
     else
     {
@@ -667,7 +711,7 @@ ApiStatus  RtspManager::linkElements()
     
     if (gst_element_link(dataRef->queue2, dataRef->mpegtsmux))
     {
-        logdbg("queue2 linked to mpegtsmux .....");
+        logdbg("queue2 linked to mpegtsmux ..... for " <<  dataRef->cameraTitle);
     }
     else
     {
@@ -676,7 +720,7 @@ ApiStatus  RtspManager::linkElements()
     
     if (gst_element_link(dataRef->mpegtsmux, dataRef->rtpmp2tpay))
     {
-        logdbg("mpegtsmux linked to rtpmp2tpay .....");
+        logdbg("mpegtsmux linked to rtpmp2tpay ..... for " <<  dataRef->cameraTitle);
     }
     else
     {
@@ -685,7 +729,7 @@ ApiStatus  RtspManager::linkElements()
     
     if (gst_element_link(dataRef->rtpmp2tpay, dataRef->udpsink))
     {
-        logdbg("rtpmp2tpay linked to udpsink .....");
+        logdbg("rtpmp2tpay linked to udpsink ..... for "  << dataRef->cameraTitle);
     }
     else
     {
@@ -1017,7 +1061,7 @@ void RtspManager::processMsgType(GstBus *bus, GstMessage* msg, RtspDataRef appRe
             }
             else 
             {
-                 logdbg("No access to apRefd in GST_MESSAGE_ERROR handler");
+                 logdbg("No access to apRef in GST_MESSAGE_ERROR handler");
             }
     
             break;
@@ -1116,7 +1160,7 @@ void RtspManager::processMsgType(GstBus *bus, GstMessage* msg, RtspDataRef appRe
             printMsg(msg, "GST_MESSAGE_QOS");
             break;
         case GST_MESSAGE_PROGRESS:
-            printMsg(msg, "GST_MESSAGE_PROGRESS");
+            //printMsg(msg, "GST_MESSAGE_PROGRESS");
             break;
         case GST_MESSAGE_TOC:
             printMsg(msg, "GST_MESSAGE_TOC");
@@ -1126,42 +1170,6 @@ void RtspManager::processMsgType(GstBus *bus, GstMessage* msg, RtspDataRef appRe
             break;
         case GST_MESSAGE_STREAM_START:
             printMsg(msg, "GST_MESSAGE_STREAM_START");
-            if (appRef)
-            {    
-                logdbg("----------------------------------------------");
-                logdbg("Calling the connected() callback!!!!");
-                logdbg("camera Guid is:      "  <<  appRef->cameraGuid);
-                logdbg("cakeStreamingURL is: "  <<  appRef->cakeStreamingUrl);
-                logdbg("IPCam status is :    "  <<  appRef->cameraStatus);
-                            int portNum = 0;
-               if (appRef->instance->getActiveCamNum() == 1)
-                  portNum = 8000;
-               else if (appRef->instance->getActiveCamNum() == 2)
-                   portNum = 8250;
-                else if (appRef->instance->getActiveCamNum() == 3)
-                    portNum = 8500;
-                else if (appRef->instance->getActiveCamNum() == 4)
-                    portNum = 8750;
-                // now add it to the streaming url
-                appRef->cakeStreamingUrl.append(":");  
-                appRef->cakeStreamingUrl.append( std::to_string(portNum));
-                
-                // send out notifications
-                logdbg("--------------------------------------------------");
-                logdbg("Sending onConnected notification: ");
-                logdbg("---------------------------------------------------");
-                Notification::UserInfo info;
-                info[IPCamConnectionSuccess] = Value::Create(appRef->cameraStatus);
-                info[IPCamGUID]              = Value::Create(appRef->cameraGuid);
-                info[IPCamCakeStreamingURL]  = Value::Create(appRef->cakeStreamingUrl);
-                info[IPCamStatus]            = Value::Create(appRef->cameraStatus);
-                NotificationCenter::DefaultCenter()->postNotification(Notification::Make( IPCamNotification , NULL, info));
-                appRef->streamConnectionCB();
-                logdbg("connected() callback finished?");  
-                logdbg("----------------------------------------------");
-            } else {
-                logdbg("No access to the data structure cannot call the connected() callback!");
-            }
             break;
         case GST_MESSAGE_NEED_CONTEXT:
             printMsg(msg, "GST_MESSAGE_NEED_CONTEXT");

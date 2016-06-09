@@ -17,7 +17,7 @@ class StreamManager
 {
 public:
     StreamManager();    
-    virtual ~StreamManager();
+     ~StreamManager();
     StreamManager(StreamManager const&)              = delete;
     StreamManager(StreamManager&&)                   = delete;
     StreamManager& operator=(StreamManager const&)   = delete;
@@ -34,18 +34,15 @@ public:
                        StreamType             streamType,
                        std::string            CameraTitle);
     ApiStatus disconnectStream(CamParamsEncryptionRef camAUthRef);
-    std::mutex data_mutex;
-   
+    std::mutex mutex;
+    std::unique_lock<std::mutex> guard;
  protected:
-    StreamManagerRef instance;
     VideoDataList    streamList;
-    std::mutex activeCamNum_mutex;
     int activeCamNum;
     int callCount = 0;
     bool activeStream; // the one that streaming
     bool validStreamingMethod;  // may be possible but not streaming
     ApiStatus ApiState;
- 
-};
+ };
 
 #endif /* StreamManager_hpp */

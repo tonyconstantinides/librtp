@@ -8,7 +8,7 @@
 
 #ifndef CamParamsEncryption_hpp
 #define CamParamsEncryption_hpp
-
+#include <mutex>
 #include <string>
 #include <vector>
 #include <map>
@@ -18,8 +18,8 @@
 class CamParamsEncryption
 {
 public:
-    CamParamsEncryption() = default;
-    virtual ~CamParamsEncryption() = default;
+    CamParamsEncryption();
+     ~CamParamsEncryption();
     
     std::string base64_encode(BYTE const* buf, unsigned int bufLen);
     std::string base64_decode(std::string const& encoded_string);
@@ -42,6 +42,8 @@ public:
     ApiStatus    setAbsPath(std::string path);
     ApiStatus    setQueryParms(std::string parms);
   private:
+    std::mutex mutex;
+    std::unique_lock<std::mutex> guard;
     std::string encriptedData;
     std::string cameraGuid;
     std::string  userName;

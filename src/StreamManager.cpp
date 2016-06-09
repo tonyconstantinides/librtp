@@ -76,16 +76,6 @@ GMainLoop* gst_player::m_mainLoop_cam3 = nullptr;
 GMainLoop* gst_player::m_mainLoop_cam4 = nullptr;
 int gst_player::camCount = 0;
 
-/*
-CamParamsEncryptionRef gst_player::camAuthRef;
-ConnectedCallBackFunc  gst_player::streamStarted;
-ErrorCallBackFunc      gst_player::streamError;
-StreamType             gst_player::streamType; 
-VideoDataList gst_player::streamList = {};
-ApiStatus gst_player::ApiState = ApiStatus::OK;
-std::mutex gst_player::gst_player_mutex;
-int gst_player::camCount = 0;
-*/
 
  gst_player::~gst_player()
  {
@@ -291,11 +281,12 @@ void gst_player::connectBlock(CamParamsEncryptionRef    camAuthRef,
         case StreamType::H264_AND_MJPEG: 
             {
               logdbg("Camera is H264 and MJPEG compatable!");
+
               RtspManagerRef  rtspManagerRef = std::make_shared<RtspManager>(CameraTitle);
               MjpegManagerRef   mjpegManagerRef = std::make_shared<MjpegManager>();
+
                 // add to the list
               logdbg("Adding a stream to the stream list!");
-              //std::lock_guard<std::mutex> lock(StreamManager::data_mutex);
               VideoStreamPair pair = std::make_pair(rtspManagerRef, mjpegManagerRef );
               gst_player::streamList.emplace_back(pair);
               int size = streamList.size();
@@ -326,9 +317,10 @@ void gst_player::connectBlock(CamParamsEncryptionRef    camAuthRef,
               rtspManagerRef->addErrorCallback(streamError);
               mjpegManagerRef->validStreamMethod(true);
               mjpegManagerRef->activateStream(false); // possible to switch to MJPEG but not by default
-              ApiState = rtspManagerRef->connectToIPCam(camAuthRef);
 
-               if (ApiState != ApiStatus::OK)
+              ApiState = rtspManagerRef->connectToIPCam(camAuthRef);
+      
+              if (ApiState != ApiStatus::OK)
                {
                    rtspManagerRef->fatalApiState("Unable to Connect to RTSP/H264 Cam");
                    rtspManagerRef->reportFailedConnection();
@@ -365,7 +357,7 @@ void gst_player::connectBlock(CamParamsEncryptionRef    camAuthRef,
 
 
 StreamManager::StreamManager()
-:  ApiState(ApiStatus::OK)
+:  guard(mutex, std::defer_lock), ApiState(ApiStatus::OK)  
 {
     logdbg("Entering StreamManager constructor.......");
     logdbg("Exiting StreaManager constructor.......");
@@ -374,15 +366,11 @@ StreamManager::StreamManager()
 StreamManager::~StreamManager()
 {
     logdbg("Entering StreamManager destructor.......");
-
     for (auto it = streamList.begin(); it != streamList.end();)
     {
         it = streamList.erase(it);
     }       
     streamList.clear();
-    instance.reset();
-    instance   = nullptr;
-
     logdbg("Exiting StreaManager destructor.......");
 }
 
@@ -391,6 +379,8 @@ ApiStatus StreamManager::connectToStream(CamParamsEncryptionRef camAuthRef,
                                          ErrorCallBackFunc      streamError,
                                          StreamType             streamType)
 {
+    guard.lock();
+
     callCount++;
     logdbg("Entering StreamManager::connectToH264Stream.......");
     logdbg("Placing mutext guard for streamList!");
@@ -408,6 +398,7 @@ ApiStatus StreamManager::connectToStream(CamParamsEncryptionRef camAuthRef,
         logerr() << "Only Four active IP Cams are supported";
         ApiState = ApiStatus::FAIL;
     } 
+   guard.unlock();
  
    logdbg("Leaving StreamManager::connectToH264Stream.......");
    return ApiState;
@@ -417,6 +408,8 @@ ApiStatus StreamManager::connectToStream(CamParamsEncryptionRef camAuthRef,
 ApiStatus StreamManager::disconnectStream(CamParamsEncryptionRef camAuth)
 {
     logdbg("Entering StreamManager::disconnectStream.......");
+    guard.lock();
+
     for (auto& pair : streamList)
     {
         RtspManagerRef rtsp = pair.first;
@@ -427,6 +420,8 @@ ApiStatus StreamManager::disconnectStream(CamParamsEncryptionRef camAuth)
             mjpeg.reset();
         }    
     }
+    guard.unlock();
+
     logdbg("Leaving StreamManager::disconnectStream.......");
     return ApiStatus::OK;
 }

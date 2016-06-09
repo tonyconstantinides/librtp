@@ -7,6 +7,7 @@
 //
 
 #include "CamParamsEncryption.hpp"
+#include <string>
 
 static const std::string base64_chars =
 "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
@@ -14,11 +15,22 @@ static const std::string base64_chars =
 "0123456789+/";
 
 
+CamParamsEncryption::CamParamsEncryption()
+:  guard (mutex, std::defer_lock)
+{
+} 
+
+CamParamsEncryption::~CamParamsEncryption()
+{
+}    
+
 ApiStatus CamParamsEncryption::setCameraGuid(std::string guid)
 {
     if (guid == "" || guid.length() == 0)
        return ApiStatus::FAIL;
+    guard.lock();  
     this->cameraGuid = guid;
+    guard.unlock();
     return ApiStatus::OK;
 }
 
@@ -26,7 +38,9 @@ ApiStatus CamParamsEncryption::setUserName(std::string username)
 {
     if (username == "" || username.length() == 0)
         return ApiStatus::FAIL;
+    guard.lock();  
     this->userName = username;
+    guard.unlock();
     return ApiStatus::OK;
 }
 
@@ -34,7 +48,9 @@ ApiStatus CamParamsEncryption::setPassword(std::string password)
 {
     if (password == "" || password.length() == 0)
         return ApiStatus::FAIL;
+    guard.lock();
     this->password = password;
+    guard.unlock();
     return ApiStatus::OK;
 }
 
@@ -42,7 +58,9 @@ ApiStatus CamParamsEncryption::setHost(std::string host)
 {
     if (host == "" || host.length() == 0)
         return ApiStatus::FAIL;
-     this->host = host;
+    guard.lock();
+    this->host = host;
+    guard.unlock();
     return ApiStatus::OK;
 }
 
@@ -50,7 +68,9 @@ ApiStatus CamParamsEncryption::setPort(std::string port)
 {
     if (port == "" || port.length() == 0)
         return ApiStatus::FAIL;
+    guard.lock();
     this->port = port;
+    guard.unlock();
     return ApiStatus::OK;
 }
 
@@ -58,7 +78,9 @@ ApiStatus CamParamsEncryption::setAbsPath(std::string path)
 {
     if (path == "" || path.length() == 0)
         return ApiStatus::FAIL;
+    guard.lock();
     this->abspath = path;
+    guard.unlock();
     return ApiStatus::OK;
 }
 
@@ -66,7 +88,9 @@ ApiStatus CamParamsEncryption::setQueryParms(std::string parms)
 {
     if (parms == "" || parms.length() == 0)
         return ApiStatus::FAIL;
+    guard.lock();
     this->queryParms = parms;
+    guard.unlock();
     return ApiStatus::OK;
 }
 
@@ -110,8 +134,10 @@ bool CamParamsEncryption::is_base64(unsigned char c)
     return (isalnum(c) || (c == '+') || (c == '/'));
 }
 
-std::string CamParamsEncryption::base64_encode(BYTE const* buf, unsigned int bufLen)
+std::string CamParamsEncryption::base64_encode(BYTE const* buffer, unsigned int bufLen)
 {
+    guard.lock();
+    char* buf = strdup((const char *)buffer);
     std::string ret;
     int i = 0;
     int j = 0;
@@ -148,12 +174,13 @@ std::string CamParamsEncryption::base64_encode(BYTE const* buf, unsigned int buf
         while((i++ < 3))
             ret += '=';
     }
-    
+    guard.unlock();
     return ret;
 }
 
 std::string CamParamsEncryption::base64_decode(std::string const& encoded_string)
 {
+    guard.lock();
     int in_len = encoded_string.size();
     int i = 0;
     int j = 0;
@@ -190,7 +217,7 @@ std::string CamParamsEncryption::base64_decode(std::string const& encoded_string
         
         for (j = 0; (j < i - 1); j++) ret += char_array_3[j];
     }
-    
+    guard.unlock();
     return ret;
 }
 
