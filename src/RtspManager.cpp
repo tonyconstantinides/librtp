@@ -81,7 +81,7 @@ ApiStatus RtspManager::connectToIPCam( CamParamsEncryptionRef camAuthRef)
     assignAuth(camAuthRef);
     cameraGuid =   authCamRef->base64_decode(crypto_cameraGuid ).c_str();
     cakeStreamingUrl =  "rtp://127.0.0.1";
-    cameraStatus = "connected";
+    cameraStatus = "disconnected";
 
     connection_info.user        = strdup(camAuthRef->base64_decode(crypto_userName).c_str());
     connection_info.passwd     = strdup(camAuthRef->base64_decode(crypto_password).c_str());
@@ -96,10 +96,15 @@ ApiStatus RtspManager::connectToIPCam( CamParamsEncryptionRef camAuthRef)
     logdbg("Additional Path: " << connection_info.abspath );
     logdbg("User name:  "      <<  connection_info.user );
     logdbg("Camera Guid: "     <<  cameraGuid);
-    
+
+    dataRef->cameraGuid            = cameraGuid;
+    dataRef->cakeStreamingUrl      = cakeStreamingUrl;
+    dataRef->cameraStatus          = cameraStatus;
+
     result = gst_rtsp_connection_create(&connection_info, &dataRef->connection);
     if (result != GST_RTSP_OK)
     {
+         dataRef->cameraStatus          = cameraStatus;
         return fatalApiState("RtspManager::gst_rtsp_connection_create failed!");
     }
     result = gst_rtsp_connection_set_auth(dataRef->connection,
@@ -164,9 +169,6 @@ ApiStatus RtspManager::connectToIPCam( CamParamsEncryptionRef camAuthRef)
 
     logdbg("----------------------------------------------------------------");
     logdbg("Setting the camera stuff into a data structure to pass around");
-    dataRef->cameraGuid            = cameraGuid;
-    dataRef->cakeStreamingUrl      = cakeStreamingUrl;
-    dataRef->cameraStatus          = cameraStatus;
     logdbg("camera Title: "        << dataRef->cameraTitle);
     logdbg("cameraGuid is: "       << dataRef->cameraGuid);
     logdbg("cakeStreamingUrl is: " << dataRef->cakeStreamingUrl);
@@ -182,6 +184,8 @@ ApiStatus RtspManager::connectToIPCam( CamParamsEncryptionRef camAuthRef)
         logdbg("Test TCP/IP connection to IP Camera successful!");
         logdbg("----------------------------------------------------------------");
     }
+    cameraStatus = "connected";
+    dataRef->cameraStatus          = cameraStatus;
     guard.unlock();
 
     logdbg("Exiting connectToIPCam.......");
@@ -239,7 +243,23 @@ void   RtspManager::reportFailedConnection()
     dataRef->errorHandlerRef->errorMsg = "Cam Unfound and unable to connect";
     dataRef->errorHandlerRef->category = ErrorCategoryDetected::UNKNOWN;
     dataRef->errorHandlerRef->reported  = ErrorCategoryReported::CAM_DISCOVERY_FAILED;
-    
+    logdbg("--------------------------------------------------");
+    logdbg("Sending onError notification: ");
+    logdbg("camera Title: "        << dataRef->cameraTitle);
+    logdbg("cameraGuid is: "       << dataRef->cameraGuid);
+    logdbg("cakeStreamingUrl is: " << dataRef->cakeStreamingUrl);
+    logdbg("cameraStatus is: "     << dataRef->cameraStatus);
+    logdbg("Connection url is: "   << dataRef->connectionUrl);
+    logdbg("----------------------------------------------------------------");
+    Notification::UserInfo info;
+    info[IPCamUnrecoverableError] = Value::Create(dataRef->cameraStatus);
+    info[IPCamGUID]               = Value::Create(dataRef->cameraGuid);
+    info[IPCamCakeStreamingURL]   = Value::Create(dataRef->cakeStreamingUrl);
+    info[IPCamStatus]             = Value::Create(dataRef->cameraStatus);
+    info[IPCamSeq]                = Value::Create(dataRef->cameraTitle);   
+    info[IPCamErrorCategory]      = Value::Create("Cam Auth failed");
+    NotificationCenter::DefaultCenter()->postNotification(Notification::Make( IPCamNotification , NULL, info));
+
     logdbg("-----------------------------------------");
     logdbg("Calling the onError callback");
     logdbg("Camera Title is: "     << dataRef->cameraTitle);
@@ -341,7 +361,7 @@ ApiStatus RtspManager::startLoop()
         logdbg("Connection url is: "   << dataRef->connectionUrl);
         logdbg("----------------------------------------------------------------");
 
-         Notification::UserInfo info;
+        Notification::UserInfo info;
         info[IPCamConnectionSuccess] = Value::Create(dataRef->cameraStatus);
         info[IPCamGUID]              = Value::Create(dataRef->cameraGuid);
         info[IPCamCakeStreamingURL]  = Value::Create(dataRef->cakeStreamingUrl);

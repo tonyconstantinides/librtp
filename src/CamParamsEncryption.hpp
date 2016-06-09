@@ -20,6 +20,11 @@ class CamParamsEncryption
 public:
     CamParamsEncryption();
      ~CamParamsEncryption();
+    CamParamsEncryption(CamParamsEncryption const&)              = default;
+    CamParamsEncryption(CamParamsEncryption&&)                   = default;
+    CamParamsEncryption& operator=(CamParamsEncryption const&)   = delete;
+    CamParamsEncryption& operator=(CamParamsEncryption&&)        = delete;
+
     
     std::string base64_encode(BYTE const* buf, unsigned int bufLen);
     std::string base64_decode(std::string const& encoded_string);

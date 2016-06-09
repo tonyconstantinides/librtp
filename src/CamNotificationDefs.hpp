@@ -13,7 +13,7 @@ static const std::string IPCamNotification    = "ipcam_notification_catageory";
 static const std::string IPCamErrorCategory = "ipcam_errorCategoryKey";
 
 static const std::string  IPCamGUID            = "ipcam_cameraGuidKey";
-static const std::string   IPCamSeq             = "ipcam_seqnum";
+static const std::string  IPCamSeq             = "ipcam_seqnum";
 static const std::string  IPCamCakeStreamingURL = "ipcam_cakeStreamingURLKey";
 static const std::string  IPCamStatus = "ipcam_statusKey";
 
