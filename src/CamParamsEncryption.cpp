@@ -24,74 +24,81 @@ CamParamsEncryption::~CamParamsEncryption()
 {
 }    
 
-ApiStatus CamParamsEncryption::setCameraGuid(std::string guid)
+ApiStatus CamParamsEncryption::setCameraGuid(std::string Guid)
 {
-    if (guid == "" || guid.length() == 0)
+    if (Guid == "" || Guid.length() == 0)
        return ApiStatus::FAIL;
-    guard.lock();  
-    this->cameraGuid = guid;
-    guard.unlock();
+    if (Guid.c_str())
+    { 
+        cameraGuid.assign(Guid);
+    }
     return ApiStatus::OK;
 }
 
-ApiStatus CamParamsEncryption::setUserName(std::string username)
+ApiStatus CamParamsEncryption::setUserName(std::string Username)
 {
-    if (username == "" || username.length() == 0)
+    if (Username == "" || Username.length() == 0)
         return ApiStatus::FAIL;
-    guard.lock();  
-    this->userName = username;
-    guard.unlock();
+    if (Username.c_str())
+    {  
+        userName.assign(Username);
+    }
     return ApiStatus::OK;
 }
 
-ApiStatus CamParamsEncryption::setPassword(std::string password)
+ApiStatus CamParamsEncryption::setPassword(std::string Password)
 {
-    if (password == "" || password.length() == 0)
+    if (Password == "" || Password.length() == 0)
         return ApiStatus::FAIL;
-    guard.lock();
-    this->password = password;
-    guard.unlock();
+    if (Password.c_str())
+    {
+        password.assign(Password);
+    }
     return ApiStatus::OK;
 }
 
-ApiStatus CamParamsEncryption::setHost(std::string host)
+ApiStatus CamParamsEncryption::setHost(std::string Host)
 {
-    if (host == "" || host.length() == 0)
+    if (Host == "" || Host.length() == 0)
         return ApiStatus::FAIL;
-    guard.lock();
-    this->host = host;
-    guard.unlock();
+    if (Host.c_str())
+    {    
+        host.assign(Host);
+    }
     return ApiStatus::OK;
 }
 
-ApiStatus CamParamsEncryption::setPort(std::string port)
+ApiStatus CamParamsEncryption::setPort(std::string Port)
 {
-    if (port == "" || port.length() == 0)
+    if (Port == "" || Port.length() == 0)
         return ApiStatus::FAIL;
-    guard.lock();
-    this->port = port;
-    guard.unlock();
+    if (Port.c_str())
+    {    
+        port.assign(Port);
+    }
     return ApiStatus::OK;
 }
 
-ApiStatus CamParamsEncryption::setAbsPath(std::string path)
+ApiStatus CamParamsEncryption::setAbsPath(std::string Path)
 {
-    if (path == "" || path.length() == 0)
+    if (Path == "" || Path.length() == 0)
         return ApiStatus::FAIL;
-    guard.lock();
-    this->abspath = path;
-    guard.unlock();
+    if (Path.c_str())
+    {    
+     abspath.assign(Path);
+    }
     return ApiStatus::OK;
 }
 
-ApiStatus CamParamsEncryption::setQueryParms(std::string parms)
+ApiStatus CamParamsEncryption::setQueryParms(std::string Parms)
 {
-    if (parms == "" || parms.length() == 0)
+    if (Parms == "" || Parms.length() == 0)
         return ApiStatus::FAIL;
-    guard.lock();
-    this->queryParms = parms;
-    guard.unlock();
-    return ApiStatus::OK;
+    if (Parms.c_str())
+    {    
+        queryParms.assign(Parms);
+    }
+   return ApiStatus::OK;
 }
 
 std::string  CamParamsEncryption::getCameraGuid()
@@ -136,7 +143,6 @@ bool CamParamsEncryption::is_base64(unsigned char c)
 
 std::string CamParamsEncryption::base64_encode(BYTE const* buffer, unsigned int bufLen)
 {
-    guard.lock();
     char* buf = strdup((const char *)buffer);
     std::string ret;
     int i = 0;
@@ -174,13 +180,11 @@ std::string CamParamsEncryption::base64_encode(BYTE const* buffer, unsigned int 
         while((i++ < 3))
             ret += '=';
     }
-    guard.unlock();
     return ret;
 }
 
 std::string CamParamsEncryption::base64_decode(std::string const& encoded_string)
 {
-    guard.lock();
     int in_len = encoded_string.size();
     int i = 0;
     int j = 0;
@@ -217,8 +221,7 @@ std::string CamParamsEncryption::base64_decode(std::string const& encoded_string
         
         for (j = 0; (j < i - 1); j++) ret += char_array_3[j];
     }
-    guard.unlock();
-    return ret;
+   return ret;
 }
 
 
