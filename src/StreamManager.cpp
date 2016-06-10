@@ -211,6 +211,7 @@ void gst_player::killCam(int CamNum)
  if (CamNum == 1)
  {
       logdbg("Cleanup worker_context_cam1!");    
+      g_main_loop_quit(m_mainLoop_cam1);
       g_main_loop_unref(m_mainLoop_cam1);
       g_main_context_pop_thread_default(worker_context_cam1);
       g_main_context_unref(worker_context_cam1); 
@@ -218,6 +219,7 @@ void gst_player::killCam(int CamNum)
  else if (CamNum == 2)
  {
       logdbg("Cleanup worker_context_cam2!");    
+      g_main_loop_quit(m_mainLoop_cam2);
       g_main_loop_unref(m_mainLoop_cam2);
       g_main_context_pop_thread_default(worker_context_cam2);
       g_main_context_unref(worker_context_cam2); 
@@ -225,6 +227,7 @@ void gst_player::killCam(int CamNum)
  else if (CamNum == 3)
  {
       logdbg("Cleanup worker_context_cam3!");    
+      g_main_loop_quit(m_mainLoop_cam3);
       g_main_loop_unref(m_mainLoop_cam3);
       g_main_context_pop_thread_default(worker_context_cam3);
       g_main_context_unref(worker_context_cam3); 
@@ -232,6 +235,7 @@ void gst_player::killCam(int CamNum)
  else if (CamNum == 4)
  {
       logdbg("Cleanup worker_context_cam4!");    
+      g_main_loop_quit(m_mainLoop_cam4);
       g_main_loop_unref(m_mainLoop_cam4);
       g_main_context_pop_thread_default(worker_context_cam4);
       g_main_context_unref(worker_context_cam4); 
@@ -322,8 +326,8 @@ void gst_player::connectBlock(CamParamsEncryptionRef    camAuthRef,
                 // add to the list
               logdbg("Adding a stream to the stream list!");
               VideoStreamPair pair = std::make_pair(rtspManagerRef, mjpegManagerRef );
-              gst_player::streamList.emplace_back(pair);
-              int size = streamList.size();
+              playerRef->streamList.emplace_back(pair);
+              int size = playerRef->streamList.size();
               logdbg("Size of StreamList is : " << std::to_string(size));
           
               rtspManagerRef->validStreamMethod(true);
@@ -400,11 +404,12 @@ StreamManager::StreamManager()
 StreamManager::~StreamManager()
 {
     logdbg("Entering StreamManager destructor.......");
-    for (auto it = streamList.begin(); it != streamList.end();)
+    for (auto it = playerRef->streamList.begin(); it != playerRef->streamList.end();)
     {
-        it = streamList.erase(it);
+        it = playerRef->streamList.erase(it);
     }       
-    streamList.clear();
+    playerRef->streamList.clear();
+    playerRef.reset();
     logdbg("Exiting StreaManager destructor.......");
 }
 
@@ -422,12 +427,12 @@ ApiStatus StreamManager::connectToStream(CamParamsEncryptionRef camAuthRef,
     playerRef->streamStarted = streamStarted;
     playerRef->streamError   = streamError;
     playerRef->streamType    = streamType;
-    playerRef->streamList    = streamList;
-
+  
     if (callCount >= 1 && callCount <=4)
     {
         playerRef->play(callCount);
-    }   else
+    } 
+    else
     {
         logerr() << "Only Four active IP Cams are supported";
         ApiState = ApiStatus::FAIL;
@@ -442,39 +447,55 @@ ApiStatus StreamManager::connectToStream(CamParamsEncryptionRef camAuthRef,
 ApiStatus StreamManager::disconnectStream(CamParamsEncryptionRef camAuth)
 {
     logdbg("Entering StreamManager::disconnectStream.......");
+    logdbg("Number of streams is : " <<  playerRef->streamList.size()) ;
     guard.lock();
 
-    for (auto& pair : streamList)
+    for (auto& pair :  playerRef->streamList)
     {
         RtspManagerRef rtsp = pair.first;
         MjpegManagerRef mjpeg = pair.second;
         if (rtsp->isStream(camAuth)) 
         {    
+            if (rtsp->getActiveCamNum()  == 1)
+            {
+               logdbg("Killing Stream for Camera One.......");
+               playerRef->killCam(1);
+            } 
+            else if  (rtsp->getActiveCamNum() == 2)
+            {
+              logdbg("Killing Stream for Camera Two.......");
+              playerRef->killCam(2);
+            } 
+            else if (rtsp->getActiveCamNum() == 3) 
+            {
+              logdbg("Killing Stream for Camera Three.......");
+              playerRef->killCam(3);
+            }  
+            else if (rtsp->getActiveCamNum() == 4)
+            {
+              logdbg("Killing Stream for Camera Four.......");
+              playerRef->killCam(4);
+            }
+            rtsp->cleanUp();
             rtsp.reset();
             mjpeg.reset();
         }    
-        if (rtsp->getActiveCamNum()  == 1)
-        {
-           logdbg("Killing Stream for Camera One.......");
-           playerRef->killCam(1);
-        } 
-        else if  (rtsp->getActiveCamNum() == 2)
-        {
-           logdbg("Killing Stream for Camera Two.......");
-           playerRef->killCam(2);
-        } 
-        else if (rtsp->getActiveCamNum() == 3) 
-        {
-           logdbg("Killing Stream for Camera Three.......");
-           playerRef->killCam(3);
-        }  
-        else if (rtsp->getActiveCamNum() == 4)
-        {
-           logdbg("Killing Stream for Camera Four.......");
-           playerRef->killCam(4);
-        }  
     }
+
+   logdbg("Removing stream item from list as thw objects and its thread is dead.......");
+   for (auto iter = playerRef->streamList.begin(); iter != playerRef->streamList.end(); ++iter)
+   {
+      auto& pair = (*iter);
+      if (pair.first == nullptr)
+      {  
+       logdbg("Removing stream item!");
+        playerRef->streamList.erase (iter);
+      }
+    } 
+
     guard.unlock();
+    logdbg("Number of streams Now is : " <<  playerRef->streamList.size());
+
 
     logdbg("Leaving StreamManager::disconnectStream.......");
     return ApiStatus::OK;

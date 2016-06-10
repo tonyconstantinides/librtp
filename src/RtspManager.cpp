@@ -265,7 +265,7 @@ void   RtspManager::reportFailedConnection()
     logdbg("Camera Title is: "     << dataRef->cameraTitle);
     logdbg("Camara Guid is: "      << dataRef->cameraGuid.c_str());
     logdbg("Camara Error Msg is: " << dataRef->errorHandlerRef->errorMsg.c_str());
-    dataRef->streamErrorCB();
+    dataRef->streamErrorCB(strdup(dataRef->cameraTitle.c_str()));
     logdbg("-----------------------------------------");
 }
 
@@ -368,7 +368,7 @@ ApiStatus RtspManager::startLoop()
         info[IPCamStatus]            = Value::Create(dataRef->cameraStatus);
         NotificationCenter::DefaultCenter()->postNotification(Notification::Make( IPCamNotification , NULL, info));
         logdbg("Connected Notification for " << dataRef->cameraTitle  << " sent!");
-        dataRef->streamConnectionCB();
+        dataRef->streamConnectionCB(strdup(dataRef->cameraTitle.c_str()));
         logdbg("connected() callback finished?");  
         logdbg("----------------------------------------------");
     } else {
@@ -1071,7 +1071,7 @@ void RtspManager::processMsgType(GstBus *bus, GstMessage* msg, RtspDataRef appRe
 
                 if (appRef->streamErrorCB)
                 {    
-                    appRef->streamErrorCB( );
+                    appRef->streamErrorCB( strdup(appRef->cameraTitle.c_str()) );
                 } 
                 else 
                 {

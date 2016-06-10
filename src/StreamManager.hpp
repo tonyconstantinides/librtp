@@ -37,8 +37,7 @@ public:
     std::mutex mutex;
     std::unique_lock<std::mutex> guard;
  protected:
-    VideoDataList    streamList;
-    int activeCamNum;
+     int activeCamNum;
     int callCount = 0;
     bool activeStream; // the one that streaming
     bool validStreamingMethod;  // may be possible but not streaming

@@ -56,8 +56,8 @@ typedef std::shared_ptr<MjpegManager>  MjpegManagerRef;
 typedef std::shared_ptr<CamParamsEncryption> CamParamsEncryptionRef;
 typedef std::shared_ptr<StreamErrorHandler> StreamErrorHandlerRef;
 
-typedef std::function<void()>     ConnectedCallBackFunc;
-typedef std::function<void()>     ErrorCallBackFunc;
+typedef std::function<void(char*)>     ConnectedCallBackFunc;
+typedef std::function<void(char*)>     ErrorCallBackFunc;
 
 typedef unsigned char             BYTE;
 typedef std::map<std::string, std::string>  MapKeyValues;

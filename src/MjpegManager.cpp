@@ -320,7 +320,7 @@ void MjpegManager::processMsgType(GstBus *bus, GstMessage* msg, gpointer data)
             pdata->errorHandlerRef->reported  = ErrorCategoryReported::CLEAR;
             pdata->errorHandlerRef->processErrorState(msg);
             pdata->cameraErrorMsg = pdata->errorHandlerRef->errorMsg;
-            pdata->streamErrorCB();
+            pdata->streamErrorCB(strdup("A Cam"));
             break;
         }
         case GST_MESSAGE_STATE_CHANGED: {
@@ -366,7 +366,7 @@ void MjpegManager::processMsgType(GstBus *bus, GstMessage* msg, gpointer data)
                 logdbg("Calling the connected() callback!!!!");
                 pdata->cakeboxStreamingUrl = "http://127.0.0.1:8000";
                 pdata->cameraStatus    = "connected";
-                pdata->streamConnectionCB();
+                pdata->streamConnectionCB(strdup("some Cam"));
                 logdbg("connected() callback finished?");
             } else {
                 logdbg("No access to the data structure cannot call the connected() ca  llback!");
