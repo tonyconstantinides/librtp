@@ -22,10 +22,8 @@ public:
      ~CamParamsEncryption();
     CamParamsEncryption(CamParamsEncryption const&)              = default;
     CamParamsEncryption(CamParamsEncryption&&)                   = default;
-    CamParamsEncryption& operator=(CamParamsEncryption const&)   = delete;
-    CamParamsEncryption& operator=(CamParamsEncryption&&)        = delete;
-
-    
+    CamParamsEncryption& operator=(CamParamsEncryption const&)   = default;
+    CamParamsEncryption& operator=(CamParamsEncryption&&)        = default;
     std::string base64_encode(BYTE const* buf, unsigned int bufLen);
     std::string base64_decode(std::string const& encoded_string);
     
@@ -35,7 +33,7 @@ public:
     std::string  getUserName();
     std::string  getPassword();
     std::string  getHost();
-    std::string   getPort();
+    std::string  getPort();
     std::string  getAbsPath();
     std::string  getQueryParms();
     // only accepted encoded values

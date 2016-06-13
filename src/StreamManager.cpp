@@ -16,13 +16,13 @@
 class gst_player 
 {
 public:
-    gst_player() = default;
-    virtual ~gst_player();
+    gst_player();
+    ~gst_player();
     gst_player(gst_player const&)              = delete;
     gst_player(gst_player&&)                   = delete;
     gst_player& operator=(gst_player const&)   = delete;
     gst_player& operator=(gst_player&&)        = delete;
-  
+    
     static GThread*   m_camThread1;
     static GThread*   m_camThread2;
     static GThread*   m_camThread3;
@@ -35,18 +35,16 @@ public:
     static GMainLoop* m_mainLoop_cam2;
     static GMainLoop* m_mainLoop_cam3;
     static GMainLoop* m_mainLoop_cam4;
-    dispatch_queue_t queue;
     CamParamsEncryptionRef camAuthRef;
     ConnectedCallBackFunc  streamStarted;
     ErrorCallBackFunc      streamError;
     StreamType             streamType; 
-    VideoDataList          streamList;
+    VideoStreamMapRef      streamMapRef;
     ApiStatus ApiState;
-    std::mutex gst_player_mutex;
-    static int camCount;
+    VideoStreamMapRef     getStreamList() { return streamMapRef; }
 
+    static int camCount;
     void setup();
-    void cleanup();
     void killCam(int CamNum);
     static void thread_loop_run(gpointer data);
     void play(int callCount);
@@ -77,13 +75,18 @@ GMainLoop* gst_player::m_mainLoop_cam3 = nullptr;
 GMainLoop* gst_player::m_mainLoop_cam4 = nullptr;
 int gst_player::camCount = 0;
 
+gst_player::gst_player()
+{
+  streamMapRef = std::make_shared<VideoStreamMap>();
+}
 
- gst_player::~gst_player()
+gst_player::~gst_player()
  {
+  streamMapRef.reset();
+  streamMapRef = nullptr;
   playerRef.reset();
   playerRef = nullptr;
  }
- 
 
 void gst_player::play(int callCount)
 {
@@ -92,15 +95,19 @@ void gst_player::play(int callCount)
     if (camCount == 1)
     {
         m_camThread1 = g_thread_new("Cam1 Thread", (GThreadFunc)&playerRef->thread_loop_run, NULL);
+        g_thread_ref (m_camThread1);
     } else if (camCount == 2)
     {
         m_camThread2 = g_thread_new("Cam2 Thread", (GThreadFunc)&playerRef->thread_loop_run, NULL);
+        g_thread_ref (m_camThread2);
     } else if (camCount == 3)
     {
         m_camThread3 = g_thread_new("Cam3 Thread", (GThreadFunc)&playerRef->thread_loop_run, NULL);
+        g_thread_ref (m_camThread3);
     } else if (camCount == 4)
     {
         m_camThread4 = g_thread_new("Cam4 Thread", (GThreadFunc)&playerRef->thread_loop_run, NULL);
+        g_thread_ref (m_camThread4);
     }
      logdbg("Leaving gst_player::play()....... ");
 }
@@ -170,40 +177,6 @@ void gst_player::thread_loop_run(gpointer data)
 } 
 
 
-void gst_player::cleanup()
-{
-    logdbg("Entering gst_player::cleanup()");
-    if (worker_context_cam1) 
-    {  
-      logdbg("Cleanup worker_context_cam1!");    
-      g_main_loop_unref(m_mainLoop_cam1);
-      g_main_context_pop_thread_default(worker_context_cam1);
-      g_main_context_unref(worker_context_cam1); 
-    }
-    if (worker_context_cam2) 
-    {  
-      logdbg("Cleanup worker_context_cam2!");    
-      g_main_loop_unref(m_mainLoop_cam2);
-      g_main_context_pop_thread_default(worker_context_cam2);
-      g_main_context_unref(worker_context_cam2); 
-    }
-    if (worker_context_cam3) 
-    {  
-      logdbg("Cleanup worker_context_cam3!");    
-      g_main_loop_unref(m_mainLoop_cam3);
-      g_main_context_pop_thread_default(worker_context_cam3);
-      g_main_context_unref(worker_context_cam3); 
-    }
-    if (worker_context_cam4) 
-    {  
-      logdbg("Cleanup worker_context_cam4!");    
-      g_main_loop_unref(m_mainLoop_cam4);
-      g_main_context_pop_thread_default(worker_context_cam4);
-      g_main_context_unref(worker_context_cam4); 
-    }  
-
-   logdbg("Leaviung gst_player::cleanup()");
-}
 
 void gst_player::killCam(int CamNum)
 {
@@ -215,6 +188,7 @@ void gst_player::killCam(int CamNum)
       g_main_loop_unref(m_mainLoop_cam1);
       g_main_context_pop_thread_default(worker_context_cam1);
       g_main_context_unref(worker_context_cam1); 
+      g_thread_unref (m_camThread1);
  }
  else if (CamNum == 2)
  {
@@ -223,6 +197,7 @@ void gst_player::killCam(int CamNum)
       g_main_loop_unref(m_mainLoop_cam2);
       g_main_context_pop_thread_default(worker_context_cam2);
       g_main_context_unref(worker_context_cam2); 
+      g_thread_unref (m_camThread2);
  } 
  else if (CamNum == 3)
  {
@@ -231,6 +206,7 @@ void gst_player::killCam(int CamNum)
       g_main_loop_unref(m_mainLoop_cam3);
       g_main_context_pop_thread_default(worker_context_cam3);
       g_main_context_unref(worker_context_cam3); 
+      g_thread_unref (m_camThread3);
  }
  else if (CamNum == 4)
  {
@@ -239,6 +215,7 @@ void gst_player::killCam(int CamNum)
       g_main_loop_unref(m_mainLoop_cam4);
       g_main_context_pop_thread_default(worker_context_cam4);
       g_main_context_unref(worker_context_cam4); 
+      g_thread_unref (m_camThread4);
  }
 
  logdbg("Leaving gst_player::killCam() for CamNum " << CamNum);
@@ -273,7 +250,13 @@ void gst_player::connectBlock(CamParamsEncryptionRef    camAuthRef,
     logdbg("Entering gst_player::connectBlock.......");
 
     // used to id the stream based on cmaera guid
-
+    std::string key = "";
+    key.append( camAuthRef->base64_decode( camAuthRef->getCameraGuid() ));
+    key.append( camAuthRef->base64_decode( camAuthRef->getUserName() ));
+    key.append( camAuthRef->base64_decode( camAuthRef->getPassword() ));
+    key.append( camAuthRef->base64_decode( camAuthRef->getHost() ));
+    key.append( camAuthRef->base64_decode( camAuthRef->getPort() ));
+    
     switch (streamType)
     {
         case StreamType::MJPEG_ONLY:
@@ -292,10 +275,14 @@ void gst_player::connectBlock(CamParamsEncryptionRef    camAuthRef,
               mjpegManagerRef->validStreamMethod(true);
               mjpegManagerRef->activateStream(true);
               ApiState = mjpegManagerRef->connectToIPCam(camAuthRef);
+       
               if (ApiState == ApiStatus::OK)
               {
-                  VideoStreamPair pair = std::make_pair(rtspManagerRef, mjpegManagerRef );
-                  streamList.emplace_back(pair);
+                  std::pair<RtspManagerRef, MjpegManagerRef>  pair = std::make_pair(rtspManagerRef, mjpegManagerRef );
+                  pair.first = rtspManagerRef;
+                  pair.second = mjpegManagerRef;
+                  // makeup the key based on all the parts of the auth
+                  playerRef->getStreamList()->emplace(std::make_pair(key, pair));
               }
             }
             break;
@@ -309,13 +296,15 @@ void gst_player::connectBlock(CamParamsEncryptionRef    camAuthRef,
               ApiState = rtspManagerRef->connectToIPCam(camAuthRef);
               if (ApiState == ApiStatus::OK)
               {
-                  VideoStreamPair pair = std::make_pair(rtspManagerRef, mjpegManagerRef );
-                  streamList.emplace_back(pair);
+                  std::pair<RtspManagerRef, MjpegManagerRef>  pair = std::make_pair(rtspManagerRef, mjpegManagerRef );
+                  pair.first = rtspManagerRef;
+                  pair.second = mjpegManagerRef;
+                  playerRef->getStreamList()->emplace(std::make_pair(key, pair));
               }
               mjpegManagerRef->validStreamMethod(false);
               mjpegManagerRef->activateStream(false);
             }
-              break;
+            break;
         case StreamType::H264_AND_MJPEG: 
             {
               logdbg("Camera is H264 and MJPEG compatable!");
@@ -325,9 +314,12 @@ void gst_player::connectBlock(CamParamsEncryptionRef    camAuthRef,
 
                 // add to the list
               logdbg("Adding a stream to the stream list!");
-              VideoStreamPair pair = std::make_pair(rtspManagerRef, mjpegManagerRef );
-              playerRef->streamList.emplace_back(pair);
-              int size = playerRef->streamList.size();
+              std::pair<RtspManagerRef, MjpegManagerRef>  pair = std::make_pair(rtspManagerRef, mjpegManagerRef );
+              pair.first = rtspManagerRef;
+              pair.second = mjpegManagerRef;
+              playerRef->getStreamList()->emplace(std::make_pair(key, pair));
+            
+              int size = playerRef->getStreamList()->size();
               logdbg("Size of StreamList is : " << std::to_string(size));
           
               rtspManagerRef->validStreamMethod(true);
@@ -388,27 +380,20 @@ void gst_player::connectBlock(CamParamsEncryptionRef    camAuthRef,
                    return;
                }
              }  
-               break;
+            break;
     }
     logdbg("Leaving gst_player::connectBlock.......");
 }
 
 
-StreamManager::StreamManager()
-:  guard(mutex, std::defer_lock), ApiState(ApiStatus::OK)  
-{
-    logdbg("Entering StreamManager constructor.......");
-    logdbg("Exiting StreaManager constructor.......");
-}
-
 StreamManager::~StreamManager()
 {
     logdbg("Entering StreamManager destructor.......");
-    for (auto it = playerRef->streamList.begin(); it != playerRef->streamList.end();)
+    for (auto it = playerRef->getStreamList()->begin(); it != playerRef->getStreamList()->end();)
     {
-        it = playerRef->streamList.erase(it);
+        it = playerRef->streamMapRef->erase(it);
     }       
-    playerRef->streamList.clear();
+    playerRef->getStreamList()->clear();
     playerRef.reset();
     logdbg("Exiting StreaManager destructor.......");
 }
@@ -418,8 +403,7 @@ ApiStatus StreamManager::connectToStream(CamParamsEncryptionRef camAuthRef,
                                          ErrorCallBackFunc      streamError,
                                          StreamType             streamType)
 {
-    guard.lock();
-
+    std::unique_lock<std::mutex> guard(mutex, std::defer_lock);   guard.lock();
     callCount++;
     logdbg("Entering StreamManager::connectToH264Stream.......");
     logdbg("Placing mutext guard for streamList!");
@@ -428,7 +412,7 @@ ApiStatus StreamManager::connectToStream(CamParamsEncryptionRef camAuthRef,
     playerRef->streamError   = streamError;
     playerRef->streamType    = streamType;
   
-    if (callCount >= 1 && callCount <=4)
+    if (callCount >= 1 && callCount <= 4)
     {
         playerRef->play(callCount);
     } 
@@ -444,61 +428,57 @@ ApiStatus StreamManager::connectToStream(CamParamsEncryptionRef camAuthRef,
 }   
 
 
-ApiStatus StreamManager::disconnectStream(CamParamsEncryptionRef camAuth)
+ApiStatus StreamManager::disconnectStream(CamParamsEncryptionRef camAuthRef)
 {
-    logdbg("Entering StreamManager::disconnectStream.......");
-    logdbg("Number of streams is : " <<  playerRef->streamList.size()) ;
-    guard.lock();
-
-    for (auto& pair :  playerRef->streamList)
-    {
-        RtspManagerRef rtsp = pair.first;
-        MjpegManagerRef mjpeg = pair.second;
-        if (rtsp->isStream(camAuth)) 
-        {    
-            if (rtsp->getActiveCamNum()  == 1)
-            {
-               logdbg("Killing Stream for Camera One.......");
-               playerRef->killCam(1);
-            } 
-            else if  (rtsp->getActiveCamNum() == 2)
-            {
-              logdbg("Killing Stream for Camera Two.......");
-              playerRef->killCam(2);
-            } 
-            else if (rtsp->getActiveCamNum() == 3) 
-            {
-              logdbg("Killing Stream for Camera Three.......");
-              playerRef->killCam(3);
-            }  
-            else if (rtsp->getActiveCamNum() == 4)
-            {
-              logdbg("Killing Stream for Camera Four.......");
-              playerRef->killCam(4);
-            }
-            rtsp->cleanUp();
-            rtsp.reset();
-            mjpeg.reset();
-        }    
-    }
-
+   logdbg("Entering StreamManager::disconnectStream.......");
+   logdbg("Number of streams is : " <<  playerRef->streamMapRef->size()) ;
+   std::unique_lock<std::mutex> guard(mutex, std::defer_lock); 
+   guard.lock();
+  
    logdbg("Removing stream item from list as thw objects and its thread is dead.......");
-   for (auto iter = playerRef->streamList.begin(); iter != playerRef->streamList.end(); ++iter)
+   std::string key = "";
+   key.append( camAuthRef->base64_decode( camAuthRef->getCameraGuid() ));
+   key.append( camAuthRef->base64_decode( camAuthRef->getUserName() ));
+   key.append( camAuthRef->base64_decode( camAuthRef->getPassword() ));
+   key.append( camAuthRef->base64_decode( camAuthRef->getHost() ));
+   key.append( camAuthRef->base64_decode( camAuthRef->getPort() ));
+      
+   auto pair =  playerRef->getStreamList()->find(key);
+   // the first item is the key the second is an std::pair 
+   RtspManagerRef rtsp   = pair->second.first;
+   MjpegManagerRef mjpeg = pair->second.second;
+   if (rtsp->getActiveCamNum()  == 1)
    {
-      auto& pair = (*iter);
-      if (pair.first == nullptr)
-      {  
-       logdbg("Removing stream item!");
-        playerRef->streamList.erase (iter);
-      }
-    } 
-
-    guard.unlock();
-    logdbg("Number of streams Now is : " <<  playerRef->streamList.size());
-
-
-    logdbg("Leaving StreamManager::disconnectStream.......");
-    return ApiStatus::OK;
+       logdbg("Killing Stream for Camera One.......");
+       playerRef->killCam(1);
+   } 
+   else if  (rtsp->getActiveCamNum() == 2)
+   {
+      logdbg("Killing Stream for Camera Two.......");
+      playerRef->killCam(2);
+   } 
+   else if (rtsp->getActiveCamNum() == 3) 
+   {
+      logdbg("Killing Stream for Camera Three.......");
+      playerRef->killCam(3);
+   }  
+   else if (rtsp->getActiveCamNum() == 4)
+   {
+      logdbg("Killing Stream for Camera Four.......");
+      playerRef->killCam(4);
+   }
+   rtsp-> cleanUp();
+   rtsp.reset();
+   mjpeg.reset();
+   pair->second.first.reset();
+   pair->second.second.reset();
+   playerRef->getStreamList()->erase(key);
+   callCount--;
+   guard.unlock();
+   ApiState = ApiStatus::OK;
+   logdbg("Number of streams Now is : " <<  playerRef->getStreamList()->size());
+   logdbg("Leaving StreamManager::disconnectStream.......");
+   return ApiState;
 }
 
 

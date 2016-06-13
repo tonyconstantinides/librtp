@@ -55,7 +55,9 @@ typedef std::shared_ptr<RtspManager> RtspManagerRef;
 typedef std::shared_ptr<MjpegManager>  MjpegManagerRef;
 typedef std::shared_ptr<CamParamsEncryption> CamParamsEncryptionRef;
 typedef std::shared_ptr<StreamErrorHandler> StreamErrorHandlerRef;
-
+typedef std::pair<RtspManagerRef, MjpegManagerRef> VideoStreamPair;
+typedef std::map<std::string, VideoStreamPair>   VideoStreamMap;
+typedef std::shared_ptr<VideoStreamMap>      VideoStreamMapRef;
 typedef std::function<void(char*)>     ConnectedCallBackFunc;
 typedef std::function<void(char*)>     ErrorCallBackFunc;
 

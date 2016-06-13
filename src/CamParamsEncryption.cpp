@@ -24,6 +24,7 @@ CamParamsEncryption::~CamParamsEncryption()
 {
 }    
 
+
 ApiStatus CamParamsEncryption::setCameraGuid(std::string Guid)
 {
     if (Guid == "" || Guid.length() == 0)

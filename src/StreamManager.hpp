@@ -9,14 +9,13 @@
 #define StreamManager_hpp
 #include "Common.hpp"
 
-typedef std::pair<RtspManagerRef, MjpegManagerRef> VideoStreamPair;
-typedef std::vector<VideoStreamPair>   VideoDataList;
+
 
 
 class StreamManager
-{
+{ 
 public:
-    StreamManager();    
+    StreamManager() = default;    
      ~StreamManager();
     StreamManager(StreamManager const&)              = delete;
     StreamManager(StreamManager&&)                   = delete;
@@ -35,13 +34,12 @@ public:
                        std::string            CameraTitle);
     ApiStatus disconnectStream(CamParamsEncryptionRef camAUthRef);
     std::mutex mutex;
-    std::unique_lock<std::mutex> guard;
- protected:
-     int activeCamNum;
+  protected:
+    int activeCamNum = 0;
     int callCount = 0;
-    bool activeStream; // the one that streaming
-    bool validStreamingMethod;  // may be possible but not streaming
-    ApiStatus ApiState;
+    bool activeStream = false; // the one that streaming
+    bool validStreamingMethod = false;  // may be possible but not streaming
+    ApiStatus ApiState = ApiStatus::OK;
  };
 
 #endif /* StreamManager_hpp */
