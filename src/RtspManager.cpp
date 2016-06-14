@@ -389,9 +389,17 @@ GstBusSyncReply RtspManager::busSyncHandler(GstBus *bus,
     {
        logdbg("Raw Pointer is NULL for gpointer in  RtspManager::busSyncHandler!");
         return GST_BUS_ASYNC;
-    }    
-    logdbg("For this camera instance data: " <<  ptr->getptr()->cameraTitle);      
-    processMsgType(bus, msg, ptr->getptr());         
+    }
+    if (ptr)
+    {
+        ptr->getptr();
+    }
+    auto derived = std::make_shared<RtspData>();
+    auto sameDerived = std::dynamic_pointer_cast<RtspData>(
+        derived->shared_from_this()
+    );
+    logdbg("For this camera instance data: " <<  sameDerived->cameraTitle);      
+    processMsgType(bus, msg, sameDerived);         
     return GST_BUS_DROP;
 }
 
