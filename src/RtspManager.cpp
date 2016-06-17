@@ -79,9 +79,10 @@ ApiStatus RtspManager::connectToIPCam( CamParamsEncryptionRef camAuthRef)
     GstRTSPResult result;
     GstRTSPAuthMethod method = GST_RTSP_AUTH_DIGEST;
     assignAuth(camAuthRef);
-    cameraGuid =   authCamRef->base64_decode(crypto_cameraGuid ).c_str();
+    cameraTitle      =  authCamRef->base64_decode(crypto_cameraTitle ).c_str();
+    cameraGuid       =  authCamRef->base64_decode(crypto_cameraGuid ).c_str();
     cakeStreamingUrl =  "rtp://127.0.0.1";
-    cameraStatus = "disconnected";
+    cameraStatus     =  "disconnected";
 
     connection_info.user        = strdup(camAuthRef->base64_decode(crypto_userName).c_str());
     connection_info.passwd     = strdup(camAuthRef->base64_decode(crypto_password).c_str());
@@ -195,19 +196,7 @@ ApiStatus RtspManager::connectToIPCam( CamParamsEncryptionRef camAuthRef)
 
 ApiStatus RtspManager::testConnection()
 {
-    /*
-    dataRef->readSocket = gst_rtsp_connection_get_read_socket(dataRef->connection);
-    if (!dataRef->readSocket)
-    {
-        return errorApiState("RtspManager::gst_rtsp_connection_get_read_socket failed!");
-    }
-    dataRef->writeSocket =  gst_rtsp_connection_get_write_socket(dataRef->connection);
-    if (!dataRef->writeSocket)
-    {
-        return errorApiState("RtspManager::gst_rtsp_connection_get_write_socket failed!");
-    }
-    */
-  
+ 
     dataRef->url =  gst_rtsp_connection_get_url(dataRef->connection);
     if (dataRef->url == NULL)
     {
@@ -316,21 +305,17 @@ ApiStatus RtspManager::startLoop()
     // add a signal on the bus for messages
     dataRef->bus = gst_element_get_bus( dataRef->pipeline);
     dataRef->msg = gst_bus_pop_filtered(dataRef->bus, GST_MESSAGE_ANY);
-    //g_signal_connect (dataRef->bus, "message",  G_CALLBACK (RtspManager::bus_call), &dataRef);
     gst_bus_set_sync_handler(dataRef->bus,
                               &RtspManager::busSyncHandler,
                               &dataRef,  
                               &RtspManager::destroyNotify);
 
-    //gst_bus_add_signal_watch_full (dataRef->bus, G_PRIORITY_DEFAULT);
     // Start playing
     GstStateChangeReturn statechange = gst_element_set_state (dataRef->pipeline, GST_STATE_PLAYING);
     if (statechange == GST_STATE_CHANGE_FAILURE)
     {
         return errorApiState("RtspManager::Error calling gst_element_set_state()");
     }
-    // this might be too sounds ad the videopipiline is not setup yet
-    // but teh time the message is posted and the other app has read it the stream should be running
     if (dataRef)
     {    
         logdbg("---------------------------------------------");
@@ -338,15 +323,17 @@ ApiStatus RtspManager::startLoop()
         logdbg("camera Guid is:      "  <<  dataRef->cameraGuid);
         logdbg("cakeStreamingURL is: "  <<  dataRef->cakeStreamingUrl);
         logdbg("IPCam status is :    "  <<  dataRef->cameraStatus);
-                    int portNum = 0;
-       if (dataRef->instance->getActiveCamNum() == 1)
+        // figyre out stream cake box
+        int portNum = 0;
+        if (dataRef->instance->getActiveCamNum() == 1)
           portNum = 8000;
-       else if (dataRef->instance->getActiveCamNum() == 2)
+        else if (dataRef->instance->getActiveCamNum() == 2)
            portNum = 8250;
         else if (dataRef->instance->getActiveCamNum() == 3)
             portNum = 8500;
         else if (dataRef->instance->getActiveCamNum() == 4)
             portNum = 8750;
+   
         // now add it to the streaming url
         dataRef->cakeStreamingUrl.append(":");  
         dataRef->cakeStreamingUrl.append( std::to_string(portNum));
@@ -390,31 +377,24 @@ GstBusSyncReply RtspManager::busSyncHandler(GstBus *bus,
        logdbg("Raw Pointer is NULL for gpointer in  RtspManager::busSyncHandler!");
         return GST_BUS_ASYNC;
     }
-    if (ptr)
-    {
-        ptr->getptr();
-    }
-    auto derived = std::make_shared<RtspData>();
-    auto sameDerived = std::dynamic_pointer_cast<RtspData>(
-        derived->shared_from_this()
-    );
-    logdbg("For this camera instance data: " <<  sameDerived->cameraTitle);      
-    processMsgType(bus, msg, sameDerived);         
+    logdbg("Creating a shared ponter to RtspData per thread per messager for");
+    RtspDataRef derived = std::make_shared<RtspData>(*ptr->getPtr());
+    logdbg("For this camera instance data: " <<  derived->cameraTitle);      
+    processMsgType(bus, msg, derived);         
     return GST_BUS_DROP;
 }
 
 void RtspManager::destroyNotify(gpointer data)
 {
-   //cleanUp();
+
 }
 
 ApiStatus RtspManager::cleanUp()
 {
- 
-    //gst_bus_remove_signal_watch(dataRef->bus);
+    gst_bus_set_sync_handler(dataRef->bus, NULL, NULL, NULL);
+    gst_element_set_state (dataRef->pipeline, GST_STATE_NULL);
+    ApiState =  removeCallbacks();
   
-  gst_element_set_state (dataRef->pipeline, GST_STATE_NULL);
-
     if (dataRef->msg)
         gst_message_unref (dataRef->msg);
     if (dataRef->bus)
@@ -423,11 +403,10 @@ ApiStatus RtspManager::cleanUp()
         gst_object_unref (dataRef->queue1);
     if (dataRef->queue2)
         gst_object_unref (dataRef->queue2);
+  
     // free the pipeline
     if (dataRef->pipeline)
         gst_object_unref (dataRef->pipeline);
-    if (dataRef->main_loop)
-        gst_object_unref(dataRef->main_loop);
     if (dataRef->context)
         gst_object_unref(dataRef->context);
     if (dataRef->rtspsrc)
@@ -445,7 +424,6 @@ ApiStatus RtspManager::cleanUp()
          g_free(dataRef->connectionUrl);
 
     // now remove signals
-     ApiState =  removeCallbacks();
     free(connection_info.user);
     free(connection_info.passwd);
     free(connection_info.host);

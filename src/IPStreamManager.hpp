@@ -53,6 +53,7 @@ protected:
     bool         activeStream;
     bool         validStreamingMethod;
     std::string  connection_url;
+    std::string  cameraTitle;
     std::string  cameraGuid;
     std::string  cakeStreamingUrl;
     std::string  cameraStatus;
@@ -61,6 +62,12 @@ protected:
     CamParamsEncryptionRef authCamRef;
 
     // sensitive data stored as properties
+    class {
+        std::string value;
+    public:
+        std::string & operator = (const std::string &i) { return value = i; }
+        operator std::string() const { return value; }
+    } crypto_cameraTitle;
     class {
         std::string value;
     public:

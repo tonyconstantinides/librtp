@@ -1,4 +1,4 @@
-//
+    //
 //  StreamManager.cpp
 //  evartp
 //
@@ -12,6 +12,7 @@
 #include "MjpegManager.hpp"
 #include <dispatch/dispatch.h>
 #include <atomic>
+#include <string>
 
 class gst_player 
 {
@@ -39,9 +40,9 @@ public:
     ConnectedCallBackFunc  streamStarted;
     ErrorCallBackFunc      streamError;
     StreamType             streamType; 
-    static VideoStreamMapRef      streamMapRef;
+    VideoStreamMapRef      streamMapRef;
     ApiStatus ApiState;
-    static VideoStreamMapRef     getStreamList();
+    VideoStreamMapRef     getStreamList();
     std::mutex mutex;
 
     static int camCount;
@@ -58,10 +59,13 @@ public:
 
 };
 
+VideoStreamMapRef streamMapRef = std::make_shared<VideoStreamMap>();
 std::shared_ptr<gst_player> playerRef1 = nullptr;
 std::shared_ptr<gst_player> playerRef2 = nullptr;
 std::shared_ptr<gst_player> playerRef3 = nullptr;
-std::shared_ptr<gst_player> playerRef4 = nullptr;
+std::shared_ptr<VideoStreamMap>    streamMapRef1 = nullptr;
+std::shared_ptr<VideoStreamMap>    streamMapRef2 = nullptr;
+std::shared_ptr<VideoStreamMap>    streamMapRef3 = nullptr;
 
 GThread*   gst_player::m_camThread1 = nullptr;
 GThread*   gst_player::m_camThread2 = nullptr;
@@ -76,7 +80,6 @@ GMainLoop* gst_player::m_mainLoop_cam2 = nullptr;
 GMainLoop* gst_player::m_mainLoop_cam3 = nullptr;
 GMainLoop* gst_player::m_mainLoop_cam4 = nullptr;
 int gst_player::camCount = 0;
-VideoStreamMapRef gst_player::streamMapRef = std::make_shared<VideoStreamMap>();;
 
 
 VideoStreamMapRef  gst_player::getStreamList()
@@ -98,17 +101,23 @@ gst_player::~gst_player()
   if (playerRef1)
   {
      playerRef1.reset();
-      playerRef1 = nullptr;
+     playerRef1 = nullptr;
+     streamMapRef1.reset();
+     streamMapRef1 = nullptr;
   }
   if (playerRef2)
    {
-         playerRef2.reset();
-         playerRef2 = nullptr;
+     playerRef2.reset();
+     playerRef2 = nullptr;
+     streamMapRef2.reset();
+     streamMapRef2 = nullptr;
    }
    if (playerRef3)
    {
-         playerRef3.reset();
-         playerRef3 = nullptr;
+     playerRef3.reset();
+     playerRef3 = nullptr;
+     streamMapRef3.reset();
+     streamMapRef3 = nullptr;
    }
   //   mutex.unlock();
  }
@@ -184,8 +193,6 @@ void gst_player::thread_loop_run(gpointer data)
    logdbg("Entering gst_player::main_loop_thread()......."); 
 } 
 
-
-
 void gst_player::killCam(int CamNum)
 {
  logdbg("Entering gst_player::killCam() for CamNum " << CamNum);
@@ -193,7 +200,6 @@ void gst_player::killCam(int CamNum)
  {
       logdbg("Cleanup worker_context_cam1!");
       mutex.lock();    
-      //g_main_context_pop_thread_default(worker_context_cam1);
       g_main_context_unref(worker_context_cam1); 
       g_main_loop_quit(m_mainLoop_cam1);
       g_main_loop_unref(m_mainLoop_cam1);
@@ -207,7 +213,6 @@ void gst_player::killCam(int CamNum)
  {
       logdbg("Cleanup worker_context_cam2!");    
       mutex.lock();    
-      //g_main_context_pop_thread_default(worker_context_cam2);
       g_main_context_unref(worker_context_cam2); 
       g_main_loop_quit(m_mainLoop_cam2);
       g_main_loop_unref(m_mainLoop_cam2);
@@ -221,7 +226,6 @@ void gst_player::killCam(int CamNum)
  {
       logdbg("Cleanup worker_context_cam3!");    
       mutex.lock();
-      //g_main_context_pop_thread_default(worker_context_cam3);
       g_main_context_unref(worker_context_cam3); 
       g_main_loop_quit(m_mainLoop_cam3);
       g_main_loop_unref(m_mainLoop_cam3);
@@ -249,7 +253,7 @@ void gst_player::createVideoPipeline(std::string CameraTitle)
    // mutex.lock();
     if (gst_player::camCount == 1)
     {
-                playerRef1->connectBlock(
+       playerRef1->connectBlock(
                                  playerRef1->camAuthRef,
                                  playerRef1->streamStarted,
                                  playerRef1->streamError,
@@ -289,11 +293,7 @@ void gst_player::connectBlock(CamParamsEncryptionRef    camAuthRef,
     // used to id the stream based on cmaera guid
     std::string key = "";
     key.append( camAuthRef->base64_decode( camAuthRef->getCameraGuid() ));
-    key.append( camAuthRef->base64_decode( camAuthRef->getUserName() ));
-    key.append( camAuthRef->base64_decode( camAuthRef->getPassword() ));
-    key.append( camAuthRef->base64_decode( camAuthRef->getHost() ));
-    key.append( camAuthRef->base64_decode( camAuthRef->getPort() ));
-    
+  
     switch (streamType)
     {
         case StreamType::MJPEG_ONLY:
@@ -349,7 +349,14 @@ void gst_player::connectBlock(CamParamsEncryptionRef    camAuthRef,
 
               RtspManagerRef  rtspManagerRef = std::make_shared<RtspManager>(CameraTitle);
               MjpegManagerRef   mjpegManagerRef = std::make_shared<MjpegManager>();
-
+              rtspManagerRef->validStreamMethod(true);
+              rtspManagerRef->activateStream(true); // this is the prime stream
+              rtspManagerRef->addConnectionCallback(streamStarted);
+              // old school programmiong with no exceptions, check every return
+              rtspManagerRef->addErrorCallback(streamError);
+              mjpegManagerRef->validStreamMethod(true);
+              mjpegManagerRef->activateStream(false); // possible to switch to MJPEG but not by default
+  
                 // add to the list
               logdbg("---------------------------------------------");
               logdbg("Adding a stream to the stream list!");
@@ -359,37 +366,32 @@ void gst_player::connectBlock(CamParamsEncryptionRef    camAuthRef,
       
               logdbg("Inserting key associated with RtspManagerRef and MjpegManagerRef pair!");
               logdbg("key is: " << key);
-      
-              logdbg("Size of the streamList before inserting another stream: " <<  gst_player::getStreamList()->size());
-              gst_player::getStreamList()->emplace(std::make_pair(key, pair));
-              logdbg("Size of the streamList after inserting another stream: " <<  gst_player::getStreamList()->size());
-              rtspManagerRef->validStreamMethod(true);
-              rtspManagerRef->activateStream(true); // this is the prime stream
+                    
               // set the active Cam Num
               logdbg("Setting active cam num in RtspManager!");
               if (std::strcmp(CameraTitle.c_str(), IPCAM_ONE) == 0)
               {
-                rtspManagerRef->setActiveCamNum(1);
+                  rtspManagerRef->setActiveCamNum(1);
+                  logdbg("Size of the streamList before inserting another stream: " <<  streamMapRef1->size());
+                  streamMapRef1->emplace(std::make_pair(key, pair));
+                  logdbg("Size of the streamList after inserting another stream: " <<  streamMapRef1->size());
               }
               else if (std::strcmp(CameraTitle.c_str(), IPCAM_TWO) == 0)
               {
                   rtspManagerRef->setActiveCamNum(2);
+                  logdbg("Size of the streamList before inserting another stream: " <<  streamMapRef2->size());
+                  streamMapRef2->emplace(std::make_pair(key, pair));
+                  logdbg("Size of the streamList after inserting another stream: " <<  streamMapRef2->size());
               }
               else if (std::strcmp(CameraTitle.c_str(), IPCAM_THREE) == 0)
               {
                   rtspManagerRef->setActiveCamNum(3);
+                  logdbg("Size of the streamList before inserting another stream: " <<  streamMapRef3->size());
+                  streamMapRef3->emplace(std::make_pair(key, pair));
+                  logdbg("Size of the streamList after inserting another stream: " <<  streamMapRef3->size());
               }         
-              else if (std::strcmp(CameraTitle.c_str(), IPCAM_FOUR) == 0)
-              {
-                  rtspManagerRef->setActiveCamNum(4);
-              }   
               logdbg("---------------------------------------------");
-              rtspManagerRef->addConnectionCallback(streamStarted);
-              // old school programmiong with no exceptions, check every return
-              rtspManagerRef->addErrorCallback(streamError);
-              mjpegManagerRef->validStreamMethod(true);
-              mjpegManagerRef->activateStream(false); // possible to switch to MJPEG but not by default
-
+        
               ApiState = rtspManagerRef->connectToIPCam(camAuthRef);
       
               if (ApiState != ApiStatus::OK)
@@ -428,18 +430,23 @@ void gst_player::connectBlock(CamParamsEncryptionRef    camAuthRef,
     logdbg("Leaving gst_player::connectBlock.......");
 }
 
+StreamManager::StreamManager()
+{
+  logdbg("Entering StreamManager constructor.......");
+  logdbg("Entering StreamManager constructor.......");
+}
+
 
 StreamManager::~StreamManager()
 {
-    logdbg("Entering StreamManager destructor.......");
+   logdbg("Entering StreamManager destructor.......");
     mutex.lock();
-    for (auto it = gst_player::getStreamList()->begin(); it != gst_player::getStreamList()->end();)
-      {
-            it = gst_player::getStreamList()->erase(it);
-     }
-    gst_player::getStreamList()->clear();
+    for (auto it = streamMapRef->begin(); it != streamMapRef->end();)
+    {
+            it = streamMapRef->erase(it);
+    }
     mutex.unlock();
-    logdbg("Exiting StreaManager destructor.......");
+   logdbg("Entering StreamManager destructor.......");
 }
 
 ApiStatus StreamManager::connectToStream(CamParamsEncryptionRef camAuthRef,
@@ -451,11 +458,12 @@ ApiStatus StreamManager::connectToStream(CamParamsEncryptionRef camAuthRef,
     callCount++;
     logdbg("Entering StreamManager::connectToH264Stream.......");
     logdbg("Placing mutext guard for streamList!");
-    if (callCount >= 1 && callCount <= 4)
+    if (callCount >= 1 && callCount <= 3)
     {
         if (playerRef1 == nullptr)
         {
             playerRef1 = std::make_shared<gst_player>();
+            streamMapRef1 = std::make_shared<VideoStreamMap>(*streamMapRef);
             playerRef1->camAuthRef    = camAuthRef;
             playerRef1->streamStarted = streamStarted;
             playerRef1->streamError   = streamError;
@@ -464,6 +472,7 @@ ApiStatus StreamManager::connectToStream(CamParamsEncryptionRef camAuthRef,
         } else if (playerRef2 == nullptr)
         {
             playerRef2 = std::make_shared<gst_player>();
+            streamMapRef2 = std::make_shared<VideoStreamMap>(*streamMapRef);
             playerRef2->camAuthRef    = camAuthRef;
             playerRef2->streamStarted = streamStarted;
             playerRef2->streamError   = streamError;
@@ -472,6 +481,7 @@ ApiStatus StreamManager::connectToStream(CamParamsEncryptionRef camAuthRef,
         } else if (playerRef3 == nullptr)
         {
             playerRef3 = std::make_shared<gst_player>();
+            streamMapRef3 = std::make_shared<VideoStreamMap>(*streamMapRef);
             playerRef3->camAuthRef    = camAuthRef;
             playerRef3->streamStarted = streamStarted;
             playerRef3->streamError   = streamError;
@@ -493,69 +503,160 @@ ApiStatus StreamManager::connectToStream(CamParamsEncryptionRef camAuthRef,
 ApiStatus StreamManager::disconnectStream(CamParamsEncryptionRef camAuthRef)
 {
    logdbg("Entering StreamManager::disconnectStream.......");
-   logdbg("Number of streams is : " <<  gst_player::getStreamList()->size()) ;
   
    logdbg("Removing stream item from list as thw objects and its thread is dead.......");
    std::string key = "";
-   key.append( camAuthRef->base64_decode( camAuthRef->getCameraGuid() ));
-   key.append( camAuthRef->base64_decode( camAuthRef->getUserName() ));
-   key.append( camAuthRef->base64_decode( camAuthRef->getPassword() ));
-   key.append( camAuthRef->base64_decode( camAuthRef->getHost() ));
-   key.append( camAuthRef->base64_decode( camAuthRef->getPort() ));
-   RtspManagerRef rtsp;
-   MjpegManagerRef mjpeg;
-   
-   // find active playerRef
+   key.assign( camAuthRef->base64_decode( camAuthRef->getCameraGuid() ));
+   logdbg("Key to lookup is CameraGuid only: " << key);
+   // find active ovjects
    logdbg("Lookup up key:  " << key);
-   auto search =  gst_player::getStreamList()->find(key);
-   if (search !=  gst_player::getStreamList()->end()) 
-   {
-     // the first item is the key the second is an std::pair
-     rtsp   = search->second.first;
-     mjpeg = search->second.second;
-      
-     if (rtsp->getActiveCamNum()  == 1)
-     {
-         logdbg("Killing Stream for Camera One.......");
-         playerRef1->killCam(1);
-         playerRef1.reset();
-     }
-     else if  (rtsp->getActiveCamNum() == 2)
-     {
-        logdbg("Killing Stream for Camera Two.......");
-        playerRef2->killCam(2);
-        playerRef2.reset();
-     }
-     else if (rtsp->getActiveCamNum() == 3) 
-     {
-        logdbg("Killing Stream for Camera Three.......");
-        playerRef3->killCam(3);
-        playerRef3.reset();
-     } 
-    logdbg("----------------------------------------------------------------");
-    logdbg("Cleaning up the RtspManager object associated with this thread");
-    mutex.lock();
-    rtsp->cleanUp();
-    rtsp.reset();
-    mjpeg.reset();
-    logdbg("Cleaning up the streamlist map");
-    search->second.first.reset();
-    search->second.second.reset();
-    logdbg("Removing the key");
-    gst_player::getStreamList()->erase(key);
-    callCount =  gst_player::getStreamList()->size();
-    logdbg("Number of streams Now is : " <<  callCount);
-    mutex.unlock();
-    ApiState = ApiStatus::OK;
-   logdbg("----------------------------------------------------------------");
-   }
-    else
+   if (std::strcmp(camAuthRef->base64_decode(camAuthRef->getCameraTitle()).c_str(),  IPCAM_ONE) == 0)
    { 
-      logdbg("No stream found to kill for key " << key);
-   }
+     if (streamMapRef1)
+      {
+      logdbg("Size of StreamMap is : " << streamMapRef1->size());
+      auto search = streamMapRef1->find(key);
+      if (search == streamMapRef1->end())
+      { 
+        logdbg("No stream found to kill for key " << key);
+        ApiState = ApiStatus::FAIL;
+        return ApiState;
+      }
+      findAndKillStream(key, search->second);
+     } 
+   } else if (std::strcmp(camAuthRef->base64_decode(camAuthRef->getCameraTitle()).c_str(), IPCAM_TWO) == 0)
+   {
+      if (streamMapRef2)
+      {
+        logdbg("Size of StreamMap is : " << streamMapRef2->size());
+        auto search = streamMapRef2->find(key);
+        if (search == streamMapRef2->end())
+        { 
+          logdbg("No stream found to kill for key " << key);
+          ApiState = ApiStatus::FAIL;
+          return ApiState;
+        }
+        findAndKillStream(key, search->second);
+      }
+    } else if (std::strcmp(camAuthRef->base64_decode(camAuthRef->getCameraTitle()).c_str(), IPCAM_THREE) == 0)
+    {
+      if (streamMapRef3)
+      {  
+        logdbg("Size of StreamMap is : " << streamMapRef3->size());
+        auto search = streamMapRef3->find(key);
+        if (search == streamMapRef3->end())
+        { 
+          logdbg("No stream found to kill for key " << key);
+          ApiState = ApiStatus::FAIL;
+          return ApiState;
+        }
+        findAndKillStream(key, search->second);
+     }
+    }
+
    logdbg("Leaving StreamManager::disconnectStream.......");
    //mutex.unlock();
+   ApiState = ApiStatus::OK;
    return ApiState;
+}
+
+
+void StreamManager::findAndKillStream(std::string key, std::pair<RtspManagerRef, MjpegManagerRef>  search)
+{
+   RtspManagerRef rtsp;
+   MjpegManagerRef mjpeg;
+         // the first item is the key the second s an std::pair
+   rtsp  = search.first;
+   mjpeg = search.second;
+          
+         if (rtsp->getActiveCamNum()  == 1)
+         {
+             logdbg("Killing Stream for Camera One.......");
+             rtsp->cleanUp();
+             playerRef1->killCam(1);
+             logdbg("----------------------------------------------------------------");
+             logdbg("Cleaning up the RtspManager object associated with this thread");
+             logdbg("Cleaning up the streamlist map");
+             logdbg("Removing the key object");
+             callCount =  streamMapRef1->size();
+             logdbg("Number of streams before removal is  : " <<  callCount);
+             auto map_it = streamMapRef1->begin();
+             while (map_it != streamMapRef1->end())
+             {  
+                if (map_it->first == key)
+                {
+                    streamMapRef1->erase(map_it++);
+                }
+                else
+                {
+                    ++map_it;
+                }  
+             }  
+            callCount =  streamMapRef1->size();
+            logdbg("Number of streams Now is : " <<  callCount);
+            playerRef1.reset();
+            streamMapRef1.reset();
+         }
+         else if  (rtsp->getActiveCamNum() == 2)
+         {
+            logdbg("Killing Stream for Camera Two.......");
+            rtsp->cleanUp();
+            playerRef2->killCam(2);
+            logdbg("----------------------------------------------------------------");
+            logdbg("Cleaning up the RtspManager object associated with this thread");
+            logdbg("Cleaning up the streamlist map");
+            logdbg("Removing the key object");
+            callCount =  streamMapRef2->size();
+            logdbg("Number of streams before removal is  : " <<  callCount);
+            auto map_it = streamMapRef2->begin();
+            while (map_it != streamMapRef2->end())
+            {  
+                if (map_it->first == key)
+                {
+                    streamMapRef2->erase(map_it++);
+                }
+                else
+                {
+                    ++map_it;
+                }  
+            }  
+            callCount =  streamMapRef2->size();
+            logdbg("Number of streams Now is : " <<  callCount);
+            playerRef2.reset();
+            streamMapRef2.reset();
+            mutex.unlock();
+         }
+         else if (rtsp->getActiveCamNum() == 3) 
+         {
+            logdbg("Killing Stream for Camera Three.......");
+            rtsp->cleanUp();
+            playerRef3->killCam(3);
+            logdbg("----------------------------------------------------------------");
+            logdbg("Cleaning up the RtspManager object associated with this thread");
+            logdbg("Cleaning up the streamlist map");
+            logdbg("Removing the key object");
+            callCount =  streamMapRef3->size();
+            logdbg("Number of streams before removal is  : " <<  callCount);
+            auto map_it = streamMapRef3->begin();
+            while (map_it != streamMapRef3->end())
+            {  
+              if (map_it->first == key)
+              {
+                streamMapRef3->erase(map_it++);
+              }
+              else
+              {
+                ++map_it;
+              }
+            }    
+            callCount =  streamMapRef3->size();
+            logdbg("Number of streams Now is : " <<  callCount);
+            playerRef3.reset();
+            streamMapRef3.reset();  
+            mutex.unlock();
+        } 
+        ApiState = ApiStatus::OK;
+       logdbg("----------------------------------------------------------------");
 }
 
 

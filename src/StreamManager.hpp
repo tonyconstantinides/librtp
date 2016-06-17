@@ -15,7 +15,7 @@
 class StreamManager
 { 
 public:
-    StreamManager() = default;    
+    StreamManager();    
      ~StreamManager();
     StreamManager(StreamManager const&)              = delete;
     StreamManager(StreamManager&&)                   = delete;
@@ -33,6 +33,7 @@ public:
                        StreamType             streamType,
                        std::string            CameraTitle);
     ApiStatus disconnectStream(CamParamsEncryptionRef camAUthRef);
+    void      findAndKillStream(std::string key, std::pair<RtspManagerRef, MjpegManagerRef>  search);
     std::mutex mutex;
   protected:
     int activeCamNum = 0;
@@ -40,6 +41,7 @@ public:
     bool activeStream = false; // the one that streaming
     bool validStreamingMethod = false;  // may be possible but not streaming
     ApiStatus ApiState = ApiStatus::OK;
+   
  };
 
 #endif /* StreamManager_hpp */

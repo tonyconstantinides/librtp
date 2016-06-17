@@ -23,13 +23,14 @@ ApiState(ApiStatus::OK)
 ApiStatus  IPStreamManager::assignAuth( CamParamsEncryptionRef authRef)
 {
     authCamRef = authRef;
-    crypto_cameraGuid = authCamRef->getCameraGuid();
+    crypto_cameraTitle     = authCamRef->getCameraTitle();  
+    crypto_cameraGuid      = authCamRef->getCameraGuid();
     crypto_userName        = authCamRef->getUserName();
     crypto_password        = authCamRef->getPassword();
-    crypto_host               = authCamRef->getHost();
-    crypto_port               = authCamRef->getPort();
-    crypto_absPath          = authCamRef->getAbsPath();
-    crypto_queryParms     = authCamRef->getQueryParms();
+    crypto_host            = authCamRef->getHost();
+    crypto_port            = authCamRef->getPort();
+    crypto_absPath         = authCamRef->getAbsPath();
+    crypto_queryParms      = authCamRef->getQueryParms();
     ApiState = ApiStatus::OK;
     return  ApiState;
 }

@@ -15,11 +15,13 @@
 
 // Structure to contain all our information, so we can pass it around
 // must raw pointers as the underlying API is C-based
-typedef struct _Data : std::enable_shared_from_this<_Data>
+typedef struct _Data : public std::enable_shared_from_this<_Data>
 {
-    std::shared_ptr<_Data> getptr() {
+    std::shared_ptr<_Data> getPtr()
+    {
         return shared_from_this();
     }
+
     std::string              cameraTitle;
     gboolean                 connected = false;
     GMainLoop*               main_loop = nullptr;

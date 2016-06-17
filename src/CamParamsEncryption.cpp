@@ -16,13 +16,23 @@ static const std::string base64_chars =
 
 
 CamParamsEncryption::CamParamsEncryption()
-:  guard (mutex, std::defer_lock)
 {
 } 
 
 CamParamsEncryption::~CamParamsEncryption()
 {
 }    
+
+ApiStatus CamParamsEncryption::setCameraTitle(std::string Title)
+{
+    if (Title == "" || Title.length() == 0)
+       return ApiStatus::FAIL;
+    if (Title.c_str())
+    { 
+        cameraTitle.assign(Title);
+    }
+    return ApiStatus::OK;
+}
 
 
 ApiStatus CamParamsEncryption::setCameraGuid(std::string Guid)
@@ -101,6 +111,12 @@ ApiStatus CamParamsEncryption::setQueryParms(std::string Parms)
     }
    return ApiStatus::OK;
 }
+
+
+std::string  CamParamsEncryption::getCameraTitle()
+{
+    return cameraTitle;
+ }
 
 std::string  CamParamsEncryption::getCameraGuid()
 {
